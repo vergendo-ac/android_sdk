@@ -1,0 +1,490 @@
+openapi: 3.0.0
+info:
+  version: 2.0.0
+  description: |
+    ## Description
+    This is an API for the Augmented City platform
+    ## Other resources
+    For more information, please visit our website [https://www.augmented.city](https://www.augmented.city/)
+  title: Augmented City API
+  contact:
+    email: support@vergendo.com
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+  x-logo:
+    url: 'https://images.squarespace-cdn.com/content/5dc18d1bdf3c7b576d0cac36/1586162865428-6BI8EJ4F9OHRED1GWAHA/Logo+AC+1.png?content-type=image%2Fpng'
+    altText: AugmentedCity
+servers:
+  - url: 'https://developer.augmented.city/api/v2'
+    description: AC Server
+tags:
+  - name: Reconstruction
+    x-displayName: Reconstruction
+  - name: Objects
+    description: Operations with objects
+    x-displayName: Objects
+  - name: Localizer
+    description: Localization and scene acquisition
+    x-displayName: Localization and scene acquisition
+  - name: Version
+    description: Get server version
+    x-displayName: Version
+paths:
+  /supported_cities:
+    get:
+      deprecated: true
+      summary: Get reconstructed cities list
+      operationId: getCities
+      tags:
+        - Reconstruction
+      description: List of scanned and reconstructed cities. Localization is possible only inside this zones.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconstructedCities'
+  /localizer/prepare:
+    get:
+      tags:
+        - Localizer
+      summary: Prepare localization session
+      operationId: prepare
+      description: Prepare for localization for given geolocation. Causes server to load nearby reconstructions for localization. Returns an error when localization in this location is not possible.
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+            format: double
+          description: GPS latitude
+        - in: query
+          name: lon
+          required: true
+          schema:
+            type: number
+            format: double
+          description: GPS longitude
+        - in: query
+          name: alt
+          schema:
+            type: number
+            format: double
+          description: GPS altitude (optional)
+        - in: query
+          name: dop
+          schema:
+            type: number
+            format: double
+          description: GPS HDOP (optional)
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /localizer/localize:
+    post:
+      tags:
+        - Localizer
+      summary: Localize camera
+      operationId: localize
+      description: 'Localize uploaded image. Return camera pose and optional placeholders scene, surfaces scene and objects content. Camera, placeholders and surfaces coordinates are local coordinates in reconstruction coordinate system identified by reconstruction id.'
+      responses:
+        '200':
+          description: Localization result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalizationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - description
+                - image
+              properties:
+                description:
+                  $ref: '#/components/schemas/ImageDescription'
+                image:
+                  $ref: '#/components/schemas/Image'
+            encoding:
+              description:
+                contentType: application/json
+              image:
+                contentType: image/jpeg
+          image/jpeg:
+            schema:
+              $ref: '#/components/schemas/ImageWithExif'
+  /server_version:
+    get:
+      tags:
+        - Version
+      summary: Get server version
+      operationId: getServerVersion
+      description: Get server version
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: '2.7-1-g926829c AC-178-add_versioning 2020.06.19 13:12'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  schemas:
+    Vector2d:
+      type: object
+      required:
+        - x
+        - 'y'
+      properties:
+        x:
+          type: number
+          format: float
+        'y':
+          type: number
+          format: float
+    Vector3d:
+      type: object
+      required:
+        - x
+        - 'y'
+        - z
+      properties:
+        x:
+          type: number
+          format: float
+        'y':
+          type: number
+          format: float
+        z:
+          type: number
+          format: float
+    Quaternion:
+      type: object
+      required:
+        - w
+        - x
+        - 'y'
+        - z
+      properties:
+        w:
+          type: number
+          format: float
+        x:
+          type: number
+          format: float
+        'y':
+          type: number
+          format: float
+        z:
+          type: number
+          format: float
+    Pose:
+      type: object
+      required:
+        - position
+        - orientation
+      properties:
+        position:
+          $ref: '#/components/schemas/Vector3d'
+        orientation:
+          $ref: '#/components/schemas/Quaternion'
+    Camera:
+      type: object
+      required:
+        - pose
+      properties:
+        pose:
+          $ref: '#/components/schemas/Pose'
+    PlaceholderNode3d:
+      type: object
+      required:
+        - placeholder_id
+        - pose
+      properties:
+        placeholder_id:
+          type: string
+        pose:
+          $ref: '#/components/schemas/Pose'
+        frame:
+          $ref: '#/components/schemas/Frame3d'
+    Placeholders3d:
+      type: array
+      items:
+        $ref: '#/components/schemas/PlaceholderNode3d'
+      description: Pose describes position and orientation in reconstruction coordinate system. Frame describes 4 points in placeholder coordinate system.
+    Frame2d:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        $ref: '#/components/schemas/Vector2d'
+    Frame3d:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        $ref: '#/components/schemas/Vector3d'
+    Surface:
+      type: object
+      required:
+        - pose
+        - frame
+      properties:
+        pose:
+          $ref: '#/components/schemas/Pose'
+        frame:
+          $ref: '#/components/schemas/Frame2d'
+    Surfaces:
+      type: array
+      items:
+        $ref: '#/components/schemas/Surface'
+    Placeholder:
+      type: object
+      required:
+        - placeholder_id
+      properties:
+        placeholder_id:
+          type: string
+    ARObject:
+      type: object
+      required:
+        - placeholder
+        - sticker
+      properties:
+        placeholder:
+          $ref: '#/components/schemas/Placeholder'
+        sticker:
+          type: object
+          required:
+            - sticker_id
+            - sticker_text
+            - sticker_type
+            - path
+          properties:
+            sticker_id:
+              type: string
+            sticker_text:
+              type: string
+            sticker_type:
+              type: string
+            sticker_subtype:
+              type: string
+            path:
+              type: string
+          additionalProperties:
+            type: string
+    ARObjects:
+      type: array
+      items:
+        $ref: '#/components/schemas/ARObject'
+    PrepareStatus:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          enum:
+            - 0
+            - 1
+          description: |+
+            | State   | Code   |  Description  |
+              | -- | -- | -- |
+              | Success | 0 | Server is loading nearby data |
+              | Fail | 1 | No nearby reconstructions to localize in |
+
+        message:
+          type: string
+    PrepareResult:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/PrepareStatus'
+    LocalizationStatus:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          enum:
+            - 0
+            - 1
+          description: |+
+            | State   | Code   |  Description  |
+              | -- | -- | -- |
+              | Success | 0 | Image is localized |
+              | Fail | 1 | Fail to localize image |
+
+        message:
+          type: string
+    LocalizationResult:
+      type: object
+      required:
+        - status
+      properties:
+        camera:
+          $ref: '#/components/schemas/Camera'
+        reconstruction_id:
+          type: integer
+        placeholders:
+          $ref: '#/components/schemas/Placeholders3d'
+        surfaces:
+          $ref: '#/components/schemas/Surfaces'
+        objects:
+          $ref: '#/components/schemas/ARObjects'
+        status:
+          $ref: '#/components/schemas/LocalizationStatus'
+    AddObjectStatus:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          enum:
+            - 0
+            - 1
+          description: |+
+            | State   | Code   |  Description  |
+              | -- | -- | -- |
+              | Success | 0 | Object is added |
+              | Fail | 1 | Failed to add object |
+
+        message:
+          type: string
+    AddObjectResult:
+      type: object
+      required:
+        - status
+      properties:
+        objects_info:
+          $ref: '#/components/schemas/ARObjects'
+        status:
+          $ref: '#/components/schemas/AddObjectStatus'
+    ReconstructedCity:
+      type: object
+      required:
+        - id
+        - name
+        - countryName
+        - gps
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        countryName:
+          type: string
+        gps:
+          type: object
+          required:
+            - latitude
+            - longitude
+            - radius
+          properties:
+            latitude:
+              type: number
+              format: float
+            longitude:
+              type: number
+              format: float
+            radius:
+              type: number
+              format: float
+    ReconstructedCities:
+      type: array
+      items:
+        $ref: '#/components/schemas/ReconstructedCity'
+    Image:
+      type: string
+      format: binary
+      description: A JPEG-encoded image
+    ImageDescription:
+      type: object
+      required:
+        - gps
+      properties:
+        gps:
+          type: object
+          required:
+            - latitude
+            - longitude
+          properties:
+            latitude:
+              type: number
+              format: float
+            longitude:
+              type: number
+              format: float
+            altitude:
+              type: number
+              format: float
+            hdop:
+              type: number
+              format: float
+        focal_length_in_35mm_film:
+          type: integer
+        mirrored:
+          type: boolean
+          default: false
+        rotation:
+          type: integer
+          enum:
+            - 0
+            - 90
+            - 180
+            - 270
+          default: 0
+          description: Clockwise camera rotation
+      description: Describes gps position and camera parameters
+    ImageWithExif:
+      type: string
+      format: binary
+      description: 'A JPEG-encoded image, must include GPS data in EXIF tags'
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        text/plain:
+          schema:
+            type: string
+    NotFound:
+      description: Not Found
+      content:
+        text/plain:
+          schema:
+            type: string
+    ServerError:
+      description: Internal Server Error
+      content:
+        text/plain:
+          schema:
+            type: string

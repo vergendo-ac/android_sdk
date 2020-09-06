@@ -1,0 +1,40 @@
+#! /usr/bin/env bash
+
+#library: multiplatform, jvm-retrofit2, jvm-okhttp3
+sudo chown -R $(id -u):$(id -g) reloc-api -R
+
+swagger="doc/swagger.yaml"
+
+curl http://developer.augmented.city:15000/spec/v2 -o $swagger
+
+docker run \
+  --rm \
+  -v $PWD/doc:/usr/local/src \
+  -v $PWD/reloc-api:/usr/local/dist \
+  openapitools/openapi-generator-cli \
+    generate \
+      -i /usr/local/src/swagger.yaml \
+      -g kotlin \
+      -o /usr/local/dist \
+      --package-name com.doors.api \
+      --library jvm-retrofit2 \
+      --artifact-id doors-api \
+      --artifact-version 2.0.0 \
+      --group-id com.doors.api
+      #--source-folder src/main doesn't work for some reason
+
+# Patches:
+
+# Fix source-folder
+rm -rf reloc-api/src/main/java
+mv reloc-api/src/main/kotlin reloc-api/src/main/java
+
+# Fix gradle and remove settings
+rm -rf reloc-api/settings.gradle
+cp -f reloc-api/build.gradle.lock reloc-api/build.gradle
+
+# # Dirty Fix json adapters and gix docker permissions
+sudo chown -R $(id -u):$(id -g) reloc-api -R && \
+sed -i 's/LocalizationStatus.Code/Int/' reloc-api/src/main/java/com/doors/api/models/LocalizationStatus.kt && \
+sed -i 's/PrepareStatus.Code/Int/' reloc-api/src/main/java/com/doors/api/models/PrepareStatus.kt
+
