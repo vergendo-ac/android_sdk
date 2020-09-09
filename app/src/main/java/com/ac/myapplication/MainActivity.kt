@@ -24,6 +24,7 @@ import com.doors.api.infrastructure.ApiClient
 import com.doors.api.models.ImageDescription
 import com.doors.api.models.ImageDescriptionGps
 import com.doors.api.models.LocalizationResult
+import com.doors.api.models.PrepareResult
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
@@ -51,11 +52,12 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val GPS_REQUEST = 1001
-        const val LOCALIZE_INTERVAL = 1500
-        const val DEFAULT_LOCATION_UPDATE_INTERVAL = 500L
+        const val LOCALIZE_INTERVAL = 4000
+        const val DEFAULT_LOCATION_UPDATE_INTERVAL = 1000L
         const val REQUEST_PERMISSIONS = 1000
         const val SERVER_URL = "http://developer.augmented.city:15000/api/v2"
         val PERMISSIONS = arrayOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.CAMERA
         )
@@ -64,12 +66,128 @@ class MainActivity : AppCompatActivity() {
     private lateinit var arFragment: ArFragment
     private lateinit var arSceneView: ArSceneView
     private var lastLocalizeTime: Long = 0
+    private var inLocalizeProgressFlag: Boolean = false
+
 
     private lateinit var settingsClient: SettingsClient
     private lateinit var locationManager: LocationManager
     private var lastLocation: Location? = null
     private val apiClient = ApiClient(SERVER_URL)
     private lateinit var context: Context
+    private var prepareLocalizationDone: Boolean = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        context = this
+
+        arFragment = supportFragmentManager.findFragmentById(R.id.sceneform_fragment) as ArFragment
+        arFragment.planeDiscoveryController.apply {
+            hide()
+            setInstructionView(null)
+        }
+
+        arSceneView = arFragment.arSceneView
+        settingsClient = LocationServices.getSettingsClient(this)
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        requestPermissions()
+        arSceneView.scene.addOnUpdateListener { onUpdateFrame(it) }
+    }
+
+    private suspend fun makeNetworkPrepareLocalizeCall(lat: Double, lon: Double) =
+        Dispatchers.Default {
+            var result: PrepareResult? = null
+            val webService = apiClient.createService(LocalizerApi::class.java)
+            val callResult : Call<PrepareResult> = webService.prepare(lat, lon)
+            try {
+                val response: Response<PrepareResult> = callResult.execute()
+                result = response.body()
+                Log.d("DBG", "PrepareResult: $result")
+
+            } catch (ex: Exception) {
+                Log.d("DBG", "prepare error: ${ex.message}")
+            }
+            return@Default result
+        }
+
+
+
+    private suspend fun makeNetworkLocalizeCall(image: ByteArray, lat: Double, lon: Double) =
+        Dispatchers.Default {
+            var result: LocalizationResult? = null
+            val webService = apiClient.createService(LocalizerApi::class.java)
+            val gps = ImageDescriptionGps(lat.toFloat(), lon.toFloat())
+            val imageDesc = ImageDescription(gps)
+            val mp = createMultipartBody(image)
+            val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp)
+            try {
+                val response: Response<LocalizationResult> = callResult.execute()
+                result = response.body()
+                Log.d("DBG", "LocalizationResult: $result")
+            } catch (ex: Exception) {
+                Log.d("DBG", "localize error: ${ex.message}")
+            }
+            return@Default result
+        }
+
+
+    private fun localization(imageData: ByteArray){
+        CoroutineScope(Dispatchers.Main).launch {
+
+            val lat: Double =
+                (if (lastLocation != null) lastLocation?.latitude else 0.0) as Double
+            val lon: Double =
+                (if (lastLocation != null) lastLocation?.longitude else 0.0) as Double
+            val result = makeNetworkLocalizeCall(imageData, lat, lon)
+            if (result != null) {
+                Toast.makeText(
+                    context,
+                    result.toString(),
+                    Toast.LENGTH_LONG
+                ).show()
+                lastLocalizeTime = System.currentTimeMillis()
+                inLocalizeProgressFlag = false
+            }
+        }
+    }
+
+    private fun prepareLocalization(location: Location){
+        CoroutineScope(Dispatchers.Main).launch {
+            val result = makeNetworkPrepareLocalizeCall( location.latitude, location.longitude)
+            if (result != null) {
+                Toast.makeText(
+                    context,
+                    result.toString(),
+                    Toast.LENGTH_LONG
+                ).show()
+                prepareLocalizationDone = true
+            }
+        }
+    }
+
+
+    private fun onUpdateFrame(frameTime: FrameTime) {
+        val frame: Frame = arSceneView.arFrame ?: return
+        val time = System.currentTimeMillis()
+        val delta = time - lastLocalizeTime
+
+        if ( delta >= LOCALIZE_INTERVAL && lastLocation != null && prepareLocalizationDone && !inLocalizeProgressFlag) {
+            inLocalizeProgressFlag = true
+            var imageData: ByteArray? = null
+            try {
+                val image: Image = frame.acquireCameraImage();
+                imageData = image.toByteArray()
+                image.close()
+            } catch (e: NotYetAvailableException) {
+                Log.d("DBG", "onUpdateFrame NotYetAvailableException: $e")
+            }
+            if (imageData != null) {
+                localization(imageData)
+            }else{
+                inLocalizeProgressFlag = false
+            }
+        }
+    }
 
     private fun isAllPermissionsGranted() =
         PERMISSIONS.all {
@@ -105,73 +223,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestPermissions() {
-        if (!isAllPermissionsGranted())
-            requestPermissions(this)
+    override fun onResume() {
+        super.onResume()
+        startLocationUpdates()
     }
 
-    @SuppressLint("MissingPermission")
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        context = this
-
-        arFragment = supportFragmentManager.findFragmentById(R.id.sceneform_fragment) as ArFragment
-        arFragment.planeDiscoveryController.apply {
-            hide()
-            setInstructionView(null)
-        }
-
-        arSceneView = arFragment.arSceneView
-        settingsClient = LocationServices.getSettingsClient(this)
-        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-        requestPermissions()
-
+    private fun startLocationUpdates() {
         turnGPSOn()
-
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(this)
+            return
+        }
         locationManager.requestLocationUpdates(
             LocationManager.NETWORK_PROVIDER,
             DEFAULT_LOCATION_UPDATE_INTERVAL,
             0f,
             locationListener
         )
-
-        arSceneView.scene.addOnUpdateListener { onUpdateFrame(it) }
     }
 
-
-    private fun onUpdateFrame(frameTime: FrameTime) {
-        val frame: Frame = arSceneView.arFrame ?: return
-        if (System.currentTimeMillis() - lastLocalizeTime >= LOCALIZE_INTERVAL && lastLocation != null) {
-            var imageData: ByteArray? = null
-            try {
-                val image: Image = frame.acquireCameraImage();
-                imageData = image.toByteArray()
-                image.close()
-                lastLocalizeTime = System.currentTimeMillis()
-            } catch (e: NotYetAvailableException) {
-                Log.d("DBG", "onUpdateFrame NotYetAvailableException: $e")
-            }
-            if (imageData != null) {
-                CoroutineScope(Dispatchers.Main).launch {
-                    val lat: Double =
-                        (if (lastLocation != null) lastLocation?.latitude else 0.0) as Double
-                    val lon: Double =
-                        (if (lastLocation != null) lastLocation?.longitude else 0.0) as Double
-                    val result = makeNetworkLocalizeCall(imageData, lat, lon)
-                    if (result != null) {
-                        Toast.makeText(
-                            context,
-                            result.toString(),
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-
-            }
+    private fun requestPermissions() {
+        if (!isAllPermissionsGranted()) {
+            requestPermissions(this)
         }
     }
+
 
     private fun createLocationRequest(): LocationRequest =
         LocationRequest
@@ -214,13 +297,19 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
-
         }
     }
 
+    override fun onBackPressed() {
+        super.onBackPressed()
+        finish()
+    }
 
     private val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
+            if (lastLocation == null) {
+                prepareLocalization(location)
+            }
             lastLocation = location
             Log.d("DBG", "onLocationChanged: $location")
         }
@@ -239,30 +328,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    //    suspend fun getResult() = Dispatchers.Default {
-//        val result: String
-//        // make network call
-//        return@Default result
-//    }
-//
-    private suspend fun makeNetworkLocalizeCall(image: ByteArray, lat: Double, lon: Double) =
-        Dispatchers.Default {
 
-            var result: LocalizationResult? = null
-            val webService = apiClient.createService(LocalizerApi::class.java)
-            val gps = ImageDescriptionGps(lat.toFloat(), lon.toFloat())
-            val imageDesc = ImageDescription(gps)
-            val mp = createMultipartBody(image)
-            val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp)
-            try {
-                val response: Response<LocalizationResult> = callResult.execute()
-                result = response.body()
-                Log.d("DBG", "LocalizationResult: $result")
-            } catch (ex: Exception) {
-                Log.d("DBG", "localize error: ${ex.message}")
-            }
-            return@Default result
-        }
 }
 
 fun createRequestBody(data: Any): RequestBody {

@@ -23,7 +23,7 @@ import com.squareup.moshi.Json
 data class PrepareStatus (
     /* | State   | Code   |  Description  |   | -- | -- | -- |   | Success | 0 | Server is loading nearby data |   | Fail | 1 | No nearby reconstructions to localize in |   */
     @Json(name = "code")
-    val code: PrepareStatus.Code,
+    val code: Int,
     @Json(name = "message")
     val message: kotlin.String
 ) {
