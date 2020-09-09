@@ -23,7 +23,7 @@ import com.squareup.moshi.Json
 data class LocalizationStatus (
     /* | State   | Code   |  Description  |   | -- | -- | -- |   | Success | 0 | Image is localized |   | Fail | 1 | Fail to localize image |   */
     @Json(name = "code")
-    val code: LocalizationStatus.Code,
+    val code: Int,
     @Json(name = "message")
     val message: kotlin.String
 ) {
