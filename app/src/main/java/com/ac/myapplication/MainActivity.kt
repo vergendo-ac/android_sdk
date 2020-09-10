@@ -4,17 +4,24 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.DialogInterface
 import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
+import android.graphics.Point
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.media.Image
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.MotionEvent
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -28,11 +35,18 @@ import com.doors.api.models.PrepareResult
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
-import com.google.ar.core.Frame
+import com.google.ar.core.*
 import com.google.ar.core.exceptions.NotYetAvailableException
+import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.ArSceneView
 import com.google.ar.sceneform.FrameTime
+import com.google.ar.sceneform.HitTestResult
+import com.google.ar.sceneform.math.Vector3
+import com.google.ar.sceneform.rendering.ModelRenderable
 import com.google.ar.sceneform.ux.ArFragment
+import com.google.ar.sceneform.ux.FootprintSelectionVisualizer
+import com.google.ar.sceneform.ux.TransformableNode
+import com.google.ar.sceneform.ux.TransformationSystem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.invoke
@@ -46,6 +60,7 @@ import retrofit2.Call
 import retrofit2.Response
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.concurrent.CompletionException
 
 
 class MainActivity : AppCompatActivity() {
@@ -55,13 +70,15 @@ class MainActivity : AppCompatActivity() {
         const val LOCALIZE_INTERVAL = 4000
         const val DEFAULT_LOCATION_UPDATE_INTERVAL = 1000L
         const val REQUEST_PERMISSIONS = 1000
-        const val SERVER_URL = "http://developer.augmented.city:15000/api/v2"
+        const val SERVER_URL = "http://developer.augmented.city:5000/api/v2"
         val PERMISSIONS = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.CAMERA
         )
+        const val MODEL_3D = "Heart.sfb"
     }
+
 
     private lateinit var arFragment: ArFragment
     private lateinit var arSceneView: ArSceneView
@@ -75,6 +92,13 @@ class MainActivity : AppCompatActivity() {
     private val apiClient = ApiClient(SERVER_URL)
     private lateinit var context: Context
     private var prepareLocalizationDone: Boolean = false
+
+    private var modelRenderable: ModelRenderable? = null
+
+
+
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,7 +115,22 @@ class MainActivity : AppCompatActivity() {
         settingsClient = LocationServices.getSettingsClient(this)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         requestPermissions()
+
+        createModelRenderable()
         arSceneView.scene.addOnUpdateListener { onUpdateFrame(it) }
+
+
+
+    }
+
+    private fun createModelRenderable(){
+        ModelRenderable.builder()
+            //get the context of the ARFragment and pass the name of your .sfb file
+            .setSource(arFragment.context, Uri.parse(MODEL_3D))
+            .build()
+            //I accepted the CompletableFuture using Async since I created my model on creation of the activity. You could simply use .thenAccept too.
+            //Use the returned modelRenderable and save it to a global variable of the same name
+            .thenAcceptAsync { modelRenderable -> this@MainActivity.modelRenderable = modelRenderable }
     }
 
     private suspend fun makeNetworkPrepareLocalizeCall(lat: Double, lon: Double) =
@@ -167,24 +206,74 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun onUpdateFrame(frameTime: FrameTime) {
-        val frame: Frame = arSceneView.arFrame ?: return
-        val time = System.currentTimeMillis()
-        val delta = time - lastLocalizeTime
+// TODO NOT REMOVE
+//        val frame: Frame = arSceneView.arFrame ?: return
+//        val time = System.currentTimeMillis()
+//        val delta = time - lastLocalizeTime
+//        if ( delta >= LOCALIZE_INTERVAL && lastLocation != null && prepareLocalizationDone && !inLocalizeProgressFlag) {
+//            inLocalizeProgressFlag = true
+//            var imageData: ByteArray? = null
+//            try {
+//                val image: Image = frame.acquireCameraImage();
+//                imageData = image.toByteArray()
+//                image.close()
+//            } catch (e: NotYetAvailableException) {
+//                Log.d("DBG", "onUpdateFrame NotYetAvailableException: $e")
+//            }
+//            if (imageData != null) {
+//                localization(imageData)
+//            }else{
+//                inLocalizeProgressFlag = false
+//            }
+//        }
 
-        if ( delta >= LOCALIZE_INTERVAL && lastLocation != null && prepareLocalizationDone && !inLocalizeProgressFlag) {
-            inLocalizeProgressFlag = true
-            var imageData: ByteArray? = null
-            try {
-                val image: Image = frame.acquireCameraImage();
-                imageData = image.toByteArray()
-                image.close()
-            } catch (e: NotYetAvailableException) {
-                Log.d("DBG", "onUpdateFrame NotYetAvailableException: $e")
-            }
-            if (imageData != null) {
-                localization(imageData)
-            }else{
-                inLocalizeProgressFlag = false
+        val frame: Frame = arSceneView.arFrame ?: return
+        if (frame != null) {
+            //get the trackables to ensure planes are detected
+            val var3 = frame.getUpdatedTrackables(Plane::class.java).iterator()
+            while (var3.hasNext()) {
+                val plane = var3.next() as Plane
+
+                //If a plane has been detected & is being tracked by ARCore
+                if (plane.trackingState == TrackingState.TRACKING) {
+
+
+                    //Get all added anchors to the frame
+                    val iterableAnchor = frame.updatedAnchors.iterator()
+
+                    //place the first object only if no previous anchors were added
+                    if (!iterableAnchor.hasNext()) {
+                        //Perform a hit test at the center of the screen to place an object without tapping
+
+                        val point = getScreenCenter()
+                        val hitTest = frame.hitTest(point.x.toFloat(), point.y.toFloat())
+
+                        //iterate through all hits
+                        val hitTestIterator = hitTest.iterator()
+                        while (hitTestIterator.hasNext()) {
+                            val hitResult = hitTestIterator.next()
+
+                            //Create an anchor at the plane hit
+                            val modelAnchor = plane.createAnchor(hitResult.hitPose)
+
+                            //Attach a node to this anchor with the scene as the parent
+                            val anchorNode = AnchorNode(modelAnchor)
+                            anchorNode.setParent(arSceneView.scene)
+
+                            //create a new TranformableNode that will carry our object
+                            val transformableNode = TransformableNode(arFragment.transformationSystem)
+                            transformableNode.setParent(anchorNode)
+                            transformableNode.renderable = this@MainActivity.modelRenderable
+
+                            //Alter the real world position to ensure object renders on the table top. Not somewhere inside.
+                            transformableNode.worldPosition = Vector3(
+                                modelAnchor.pose.tx(),
+                                modelAnchor.pose.compose(Pose.makeTranslation(0f, 0.05f, 0f)).ty(),
+                                modelAnchor.pose.tz()
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -308,6 +397,7 @@ class MainActivity : AppCompatActivity() {
     private val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             if (lastLocation == null) {
+
                 prepareLocalization(location)
             }
             lastLocation = location
@@ -327,6 +417,56 @@ class MainActivity : AppCompatActivity() {
             Log.d("DBG", "onProviderDisabled: $provider")
         }
     }
+
+
+
+
+    private fun addObject(parse: Uri) {
+        val frame = arSceneView.arFrame
+        val point = getScreenCenter()
+        if (frame != null) {
+            val hits = frame.hitTest(point.x.toFloat(), point.y.toFloat())
+            for (hit in hits) {
+                val trackable = hit.trackable
+                if (trackable is Plane && trackable.isPoseInPolygon(hit.hitPose)) {
+                    placeObject(hit.createAnchor(), parse)
+                    break
+                }
+            }
+        }
+    }
+
+    private fun placeObject(createAnchor: Anchor, model: Uri) {
+        ModelRenderable.builder()
+            .setSource(this, model)
+            .build()
+            .thenAccept {
+                addNodeToScene(createAnchor, it)
+            }
+            .exceptionally {
+                val builder = AlertDialog.Builder(this)
+                builder.setMessage(it.message)
+                    .setTitle("error!")
+                val dialog = builder.create()
+                dialog.show()
+                return@exceptionally null
+            }
+    }
+
+    private fun addNodeToScene(createAnchor: Anchor, renderable: ModelRenderable) {
+        val anchorNode = AnchorNode(createAnchor)
+        val transformableNode = TransformableNode(arFragment.transformationSystem)
+        transformableNode.renderable = renderable
+        transformableNode.setParent(anchorNode)
+        arFragment.arSceneView.scene.addChild(anchorNode)
+        transformableNode.select()
+    }
+
+    private fun getScreenCenter(): android.graphics.Point {
+        val vw = findViewById<View>(android.R.id.content)
+        return Point(vw.width / 2, vw.height / 2)
+    }
+
 
 
 }
