@@ -9,6 +9,7 @@ import android.graphics.ImageFormat
 import android.graphics.Point
 import android.graphics.Rect
 import android.graphics.YuvImage
+import android.icu.text.Transliterator
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -24,18 +25,20 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.doors.api.apis.LocalizerApi
 import com.doors.api.infrastructure.ApiClient
-import com.doors.api.models.ImageDescription
-import com.doors.api.models.ImageDescriptionGps
-import com.doors.api.models.LocalizationResult
-import com.doors.api.models.PrepareResult
+import com.doors.api.models.*
+import com.doors.tourist2.utils.kotlinMath.Float3
+import com.doors.tourist2.utils.kotlinMath.Float4
+import com.doors.tourist2.utils.kotlinMath.Mat4
+import com.doors.tourist2.utils.kotlinMath.transpose
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
+import com.google.ar.core.Anchor
 import com.google.ar.core.Frame
+import com.google.ar.core.Pose
 import com.google.ar.core.exceptions.NotYetAvailableException
-import com.google.ar.sceneform.ArSceneView
-import com.google.ar.sceneform.FrameTime
-import com.google.ar.sceneform.Node
+import com.google.ar.sceneform.*
+import com.google.ar.sceneform.Camera
 import com.google.ar.sceneform.math.Vector3
 import com.google.ar.sceneform.rendering.ModelRenderable
 import com.google.ar.sceneform.rendering.ViewRenderable
@@ -44,10 +47,7 @@ import com.google.ar.sceneform.ux.FootprintSelectionVisualizer
 import com.google.ar.sceneform.ux.TransformableNode
 import com.google.ar.sceneform.ux.TransformationSystem
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.invoke
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.CAMERA
         )
-        const val TEXT_FOR_STICKER =  "This is 2D"
+        const val TEXT_FOR_STICKER = "This is 2D"
         const val MODEL_3D = "object.sfb"
         const val TAG = "MainActivity"
     }
@@ -80,6 +80,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var arSceneView: ArSceneView
     private var lastLocalizeTime: Long = 0
     private var inLocalizeProgressFlag: Boolean = false
+    lateinit var syncPose: Pose
 
     private lateinit var settingsClient: SettingsClient
     private lateinit var locationManager: LocationManager
@@ -87,14 +88,17 @@ class MainActivity : AppCompatActivity() {
     private val apiClient = ApiClient(SERVER_URL)
     private lateinit var context: Context
     private var prepareLocalizationDone: Boolean = false
+    private lateinit var arTs: TransformationSystem
 
     private var modelRenderable: ModelRenderable? = null
 
-    private fun createModelRenderable(){
+    private fun createModelRenderable() {
         ModelRenderable.builder()
             .setSource(arFragment.context, Uri.parse(MODEL_3D))
             .build()
-            .thenAcceptAsync { modelRenderable -> this@MainActivity.modelRenderable = modelRenderable }
+            .thenAcceptAsync { modelRenderable ->
+                this@MainActivity.modelRenderable = modelRenderable
+            }
     }
 
 
@@ -118,6 +122,8 @@ class MainActivity : AppCompatActivity() {
 
         createModelRenderable()
         arSceneView = arFragment.arSceneView
+        arTs = arFragment.transformationSystem
+
         settingsClient = LocationServices.getSettingsClient(this)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         requestPermissions()
@@ -159,6 +165,19 @@ class MainActivity : AppCompatActivity() {
             return@Default result
         }
 
+    fun clearObjects() {
+        val children: List<Node> =
+            ArrayList(arSceneView.scene.children)
+        for (node in children) {
+            if (node is AnchorNode) {
+                node.anchor?.detach()
+            }
+            if (node !is Camera && node !is Sun) {
+                node.setParent(null)
+            }
+        }
+    }
+    val objects = mutableMapOf<String, Node>()
 
     private fun localization(imageData: ByteArray) {
         CoroutineScope(Dispatchers.Main).launch {
@@ -166,21 +185,98 @@ class MainActivity : AppCompatActivity() {
                 (if (lastLocation != null) lastLocation?.latitude else 0.0) as Double
             val lon: Double =
                 (if (lastLocation != null) lastLocation?.longitude else 0.0) as Double
-            val result = makeNetworkLocalizeCall(imageData, lat, lon)
-            if (result != null) {
-                if(result.status.code==0){
-                    if(buttonsRow.visibility == View.GONE){
-                        Toast.makeText(
-                            context,
-                            "Localize done",
-                            Toast.LENGTH_LONG
-                        ).show()
+
+            val response = makeNetworkLocalizeCall(imageData, lat, lon)
+
+
+            if (response != null) {
+                clearObjects()
+                if (response.status.code == 0) {
+
+                    val points: List<ArSticker> =
+                        response.objects!!.mapNotNull { objectInfo ->
+                            val id = objectInfo.placeholder.placeholderId
+                            val node =
+                                response.placeholders!!.singleOrNull { it.placeholderId == id }
+                            node
+                        }.map {
+                            val position = it.pose.position.toFloatArray().asList().toVector3d()
+                            ArSticker(position, it.placeholderId)
+                        }.toList()
+
+                    val camera = response.camera
+
+                    val matrix = srvToLocalTransform(
+                        syncPose.toMat4(),
+                        Pose(camera!!.pose.position.toFloatArray(),
+                            camera.pose.orientation.toFloatArray()
+                        ).toMat4(),
+                        1.0f
+                    )
+
+                    val objectsToPlace: Array<ArSticker> = points.map {
+                        val newFloat3 = it.float3.toLocal(matrix)
+                        when (it) {
+                            is ArSticker -> it.copy(float3 = newFloat3)
+                            else -> IllegalStateException()
+                        } as ArSticker
+                    }.toTypedArray()
+
+
+                    var cnt = 0
+                    points.iterator().forEach {
+                        Log.d(TAG, "points["+cnt+"] = "+points[cnt]);
+                        cnt++
                     }
+
+                    cnt = 0
+                    objectsToPlace.iterator().forEach {
+                        Log.d(TAG, "object["+cnt+"] = "+it.float3)
+                        cnt++
+                        add2dObjectPos(it.id, it.float3)
+                    }
+
+//                    if (buttonsRow.visibility == View.GONE) {
+//                        Toast.makeText(
+//                            context,
+//                            "Localize done",
+//                            Toast.LENGTH_LONG
+//                        ).show()
+//                    }
+//                    objects.clear()
+//
+//                    objectsToPlace.forEach { objectToPlace ->
+//
+//                        ViewRenderable.builder()
+//                            .setView(context, R.layout.layout_sticker)
+//                            .build()
+//                            .thenAccept { viewRenderable ->
+//
+//                                val pos: Pose = syncPose.compose(
+//                                    Pose.makeTranslation(
+//                                        objectToPlace.float3.x,
+//                                        objectToPlace.float3.y,
+//                                        objectToPlace.float3.z
+//                                    )
+//                                )
+//                                val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
+//                                val anchorNode = AnchorNode(anchor)
+//                                anchorNode.setParent(arSceneView.scene)
+//                                val node = Node()
+//                                node.apply {
+//                                    renderable = viewRenderable
+//                                    node.setParent(anchorNode)
+//                                }
+//                                objects[objectToPlace.id] = node
+//                            }
+//                    }
+
+
                     buttonsRow.visibility = View.VISIBLE
-                }else{
+                } else {
                     Toast.makeText(
                         context,
-                        result.toString(),
+                        response.toString(),
                         Toast.LENGTH_LONG
                     ).show()
                     buttonsRow.visibility = View.GONE
@@ -205,23 +301,62 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun add2dObjectPos(text: String, pos: Vector3d) {
+        ViewRenderable.builder()
+            .setView(this, R.layout.layout_sticker)
+            .build()
+            .thenAccept { viewRenderable ->
+                viewRenderable.view.findViewById<TextView>(R.id.text).text = text
+                //val forward = arSceneView.scene.camera.forward
+                //val cameraPosition = arSceneView.scene.camera.worldPosition
+                val position = Vector3(pos.x, pos.y, pos.z)
+                //val position = cameraPosition + forward
+                //val direction = cameraPosition - position
+                //direction.y = position.y
+
+                Node().apply {
+                    worldPosition = position
+                    renderable = viewRenderable
+                    setParent(arSceneView.scene)
+                    //setLookDirection(direction)
+                }
+
+
+                //val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
+                //val anchorNode = AnchorNode(anchor)
+                //anchorNode.setParent(arSceneView.scene)
+                // Create the arrow node and add it to the anchor.
+                //val node = Node()
+                //node.setParent(anchorNode)
+
+                //Node().apply {
+                //    //worldPosition = position
+                //    renderable = viewRenderable
+                //    setParent(anchorNode)
+                //    //setLookDirection(direction)
+                //}
+
+
+            }
+    }
+
     private fun add2dObject(text: String) {
         ViewRenderable.builder()
-            .setView(this, R.layout.sticker)
+            .setView(this, R.layout.layout_sticker)
             .build()
             .thenAccept { viewRenderable ->
                 viewRenderable.view.findViewById<TextView>(R.id.text).text = text
                 val forward = arSceneView.scene.camera.forward
                 val cameraPosition = arSceneView.scene.camera.worldPosition
                 val position = cameraPosition + forward
-                val direction = cameraPosition - position
-                direction.y = position.y
+                //val direction = cameraPosition - position
+                //direction.y = position.y
 
                 Node().apply {
                     worldPosition = position
                     renderable = viewRenderable
                     setParent(arSceneView.scene)
-                    setLookDirection(direction)
+                    //setLookDirection(direction)
                 }
             }
     }
@@ -274,6 +409,7 @@ class MainActivity : AppCompatActivity() {
         val delta = time - lastLocalizeTime
         if (delta >= LOCALIZE_INTERVAL && lastLocation != null && prepareLocalizationDone && !inLocalizeProgressFlag) {
             inLocalizeProgressFlag = true
+            syncPose = frame.camera.pose
             var imageData: ByteArray? = null
             try {
                 val image: Image = frame.acquireCameraImage();
@@ -527,11 +663,66 @@ fun Image.toByteArray(): ByteArray {
 }
 
 
-
 operator fun Vector3.plus(other: Vector3): Vector3 {
     return Vector3.add(this, other)
 }
 
 operator fun Vector3.minus(other: Vector3): Vector3 {
     return Vector3.subtract(this, other)
+}
+
+fun Quaternion.toFloatArray(): FloatArray {
+    return floatArrayOf(x, y, z, w)
+}
+
+fun Vector3d.toFloatArray(): FloatArray {
+    return floatArrayOf(x, y, z)
+}
+
+fun List<Float>.toVector3d(): Vector3d {
+    return Vector3d(this[0], this[1], this[2])
+}
+
+fun inverseMatrix(matrix: Mat4): Mat4 {
+    val rotation = matrix.upperLeft
+    val position = matrix.position
+
+    val newPosition: Float3 = transpose(-rotation) * position
+    val newRotation = transpose(rotation)
+    return Mat4(
+        Float4(newRotation.x, 0.0f),
+        Float4(newRotation.y, 0.0f),
+        Float4(newRotation.z, 0.0f),
+        Float4(newPosition, 1.0f)
+    )
+}
+
+fun srvToLocalTransform(local: Mat4, server: Mat4, scaleScalar: Float): Mat4 {
+    val scale = Mat4.diagonal(Float4(scaleScalar, scaleScalar, scaleScalar, 1.0f))
+
+    val tf_cb_ca = Mat4(
+        Float4(0.0f, 1.0f, 0.0f, 0.0f),
+        Float4(1.0f, 0.0f, 0.0f, 0.0f),
+        Float4(0.0f, 0.0f, -1.0f, 0.0f),
+        Float4(0.0f, 0.0f, 0.0f, 1.0f)
+    )
+
+    val tf_b_cb = inverseMatrix(server)
+    val tf_ca_a = local
+    val tf_b_a = (tf_ca_a * tf_cb_ca) * scale * tf_b_cb
+
+    return tf_b_a
+}
+
+
+fun Pose.toMat4(): Mat4 {
+    val array = FloatArray(16)
+    this.toMatrix(array, 0)
+    return Mat4(array)
+}
+
+private fun Vector3d.toLocal(matrix: Mat4): Vector3d {
+    val pointVec3 = Float4(this.x, this.y, this.z, 1.0f)
+    val pointAr: Float4 = matrix * pointVec3
+    return Vector3d(pointAr.x, pointAr.y, pointAr.z)
 }
