@@ -6,18 +6,14 @@ import android.content.Context
 import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
-import android.graphics.Point
 import android.graphics.Rect
 import android.graphics.YuvImage
-import android.icu.text.Transliterator
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.media.Image
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -36,17 +32,13 @@ import com.google.android.gms.location.*
 import com.google.ar.core.Anchor
 import com.google.ar.core.Frame
 import com.google.ar.core.Pose
+import com.google.ar.core.TrackingState
 import com.google.ar.core.exceptions.NotYetAvailableException
 import com.google.ar.sceneform.*
 import com.google.ar.sceneform.Camera
 import com.google.ar.sceneform.math.Vector3
-import com.google.ar.sceneform.rendering.ModelRenderable
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
-import com.google.ar.sceneform.ux.FootprintSelectionVisualizer
-import com.google.ar.sceneform.ux.TransformableNode
-import com.google.ar.sceneform.ux.TransformationSystem
-import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -58,9 +50,10 @@ import retrofit2.Response
 import java.io.ByteArrayOutputStream
 import java.io.File
 
-class MainActivity : AppCompatActivity() {
 
+class MainActivity : AppCompatActivity() {
     companion object {
+        const val RESPONSE_STATUS_CODE_OK = 0
         const val GPS_REQUEST = 1001
         const val LOCALIZE_INTERVAL = 3000
         const val DEFAULT_LOCATION_UPDATE_INTERVAL = 1000L
@@ -71,35 +64,22 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.CAMERA
         )
-        const val TEXT_FOR_STICKER = "This is 2D"
-        const val MODEL_3D = "object.sfb"
         const val TAG = "MainActivity"
     }
 
+    private lateinit var context: Context
+    private val apiClient = ApiClient(SERVER_URL)
     private lateinit var arFragment: ArFragment
     private lateinit var arSceneView: ArSceneView
-    private var lastLocalizeTime: Long = 0
+    private lateinit var syncPose: Pose
+
     private var inLocalizeProgressFlag: Boolean = false
-    lateinit var syncPose: Pose
+    private var lastLocalizeTime: Long = 0
+    private var currentLocation: Location? = null
 
     private lateinit var settingsClient: SettingsClient
     private lateinit var locationManager: LocationManager
-    private var lastLocation: Location? = null
-    private val apiClient = ApiClient(SERVER_URL)
-    private lateinit var context: Context
     private var prepareLocalizationDone: Boolean = false
-    private lateinit var arTs: TransformationSystem
-
-    private var modelRenderable: ModelRenderable? = null
-
-    private fun createModelRenderable() {
-        ModelRenderable.builder()
-            .setSource(arFragment.context, Uri.parse(MODEL_3D))
-            .build()
-            .thenAcceptAsync { modelRenderable ->
-                this@MainActivity.modelRenderable = modelRenderable
-            }
-    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,21 +93,11 @@ class MainActivity : AppCompatActivity() {
             setInstructionView(null)
         }
 
-        buttonAdd2d.setOnClickListener {
-            add2dObject(TEXT_FOR_STICKER)
-        }
-        buttonAdd3d.setOnClickListener {
-            add3dObject()
-        }
-
-        createModelRenderable()
         arSceneView = arFragment.arSceneView
-        arTs = arFragment.transformationSystem
-
         settingsClient = LocationServices.getSettingsClient(this)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         requestPermissions()
-        arSceneView.scene.addOnUpdateListener { onUpdateFrame(it) }
+        arSceneView.scene.addOnUpdateListener { onUpdateSceneFrame(it) }
     }
 
     private suspend fun makeNetworkPrepareLocalizeCall(lat: Double, lon: Double) =
@@ -147,12 +117,12 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-    private suspend fun makeNetworkLocalizeCall(image: ByteArray, lat: Double, lon: Double) =
+    private suspend fun makeNetworkLocalizeCall(image: ByteArray, location: Location) =
         Dispatchers.Default {
             var result: LocalizationResult? = null
             val webService = apiClient.createService(LocalizerApi::class.java)
-            val gps = ImageDescriptionGps(lat.toFloat(), lon.toFloat())
-            val imageDesc = ImageDescription(gps)
+            val gps = ImageDescriptionGps(location.latitude, location.longitude, location.altitude)
+            val imageDesc = ImageDescription(gps, null, null, 90)
             val mp = createMultipartBody(image)
             val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp)
             try {
@@ -165,9 +135,8 @@ class MainActivity : AppCompatActivity() {
             return@Default result
         }
 
-    fun clearObjects() {
-        val children: List<Node> =
-            ArrayList(arSceneView.scene.children)
+    private fun clearSceneObjects() {
+        val children: List<Node> = ArrayList(arSceneView.scene.children)
         for (node in children) {
             if (node is AnchorNode) {
                 node.anchor?.detach()
@@ -177,23 +146,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    val objects = mutableMapOf<String, Node>()
 
     private fun localization(imageData: ByteArray) {
         CoroutineScope(Dispatchers.Main).launch {
-            val lat: Double =
-                (if (lastLocation != null) lastLocation?.latitude else 0.0) as Double
-            val lon: Double =
-                (if (lastLocation != null) lastLocation?.longitude else 0.0) as Double
-
-            val response = makeNetworkLocalizeCall(imageData, lat, lon)
-
-
+            val location = Location(currentLocation)
+            val response = makeNetworkLocalizeCall(imageData, location)
             if (response != null) {
-                clearObjects()
-                if (response.status.code == 0) {
+                if (response.status.code == RESPONSE_STATUS_CODE_OK) {
+                    val camera = response.camera
 
-                    val points: List<ArSticker> =
+                    val points: List<Placeholder> =
                         response.objects!!.mapNotNull { objectInfo ->
                             val id = objectInfo.placeholder.placeholderId
                             val node =
@@ -201,85 +163,43 @@ class MainActivity : AppCompatActivity() {
                             node
                         }.map {
                             val position = it.pose.position.toFloatArray().asList().toVector3d()
-                            ArSticker(position, it.placeholderId)
+                            Placeholder(position, it.placeholderId)
                         }.toList()
 
-                    val camera = response.camera
-
                     val matrix = srvToLocalTransform(
-                        syncPose.toMat4(),
-                        Pose(camera!!.pose.position.toFloatArray(),
+                        Pose.IDENTITY.toMat4(),
+                        Pose(
+                            camera!!.pose.position.toFloatArray(),
                             camera.pose.orientation.toFloatArray()
-                        ).toMat4(),
-                        1.0f
+                        ).toMat4(), 1.0f
                     )
 
-                    val objectsToPlace: Array<ArSticker> = points.map {
-                        val newFloat3 = it.float3.toLocal(matrix)
+                    val objectsToPlace = points.map {
+                        val pos = it.position.toLocal(matrix)
                         when (it) {
-                            is ArSticker -> it.copy(float3 = newFloat3)
+                            is Placeholder -> it.copy(position = pos)
                             else -> IllegalStateException()
-                        } as ArSticker
+                        } as Placeholder
                     }.toTypedArray()
 
-
+                    clearSceneObjects()
                     var cnt = 0
-                    points.iterator().forEach {
-                        Log.d(TAG, "points["+cnt+"] = "+points[cnt]);
-                        cnt++
-                    }
-
-                    cnt = 0
                     objectsToPlace.iterator().forEach {
-                        Log.d(TAG, "object["+cnt+"] = "+it.float3)
+                        Log.d(TAG, "object[" + cnt + "] = " + it.position)
+                        add2dObjectPos(it.id, it.position)
                         cnt++
-                        add2dObjectPos(it.id, it.float3)
                     }
-
-//                    if (buttonsRow.visibility == View.GONE) {
-//                        Toast.makeText(
-//                            context,
-//                            "Localize done",
-//                            Toast.LENGTH_LONG
-//                        ).show()
-//                    }
-//                    objects.clear()
-//
-//                    objectsToPlace.forEach { objectToPlace ->
-//
-//                        ViewRenderable.builder()
-//                            .setView(context, R.layout.layout_sticker)
-//                            .build()
-//                            .thenAccept { viewRenderable ->
-//
-//                                val pos: Pose = syncPose.compose(
-//                                    Pose.makeTranslation(
-//                                        objectToPlace.float3.x,
-//                                        objectToPlace.float3.y,
-//                                        objectToPlace.float3.z
-//                                    )
-//                                )
-//                                val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
-//                                val anchorNode = AnchorNode(anchor)
-//                                anchorNode.setParent(arSceneView.scene)
-//                                val node = Node()
-//                                node.apply {
-//                                    renderable = viewRenderable
-//                                    node.setParent(anchorNode)
-//                                }
-//                                objects[objectToPlace.id] = node
-//                            }
-//                    }
-
-
-                    buttonsRow.visibility = View.VISIBLE
+                    Toast.makeText(
+                        context,
+                        "Localization done",
+                        Toast.LENGTH_LONG
+                    ).show()
                 } else {
                     Toast.makeText(
                         context,
                         response.toString(),
                         Toast.LENGTH_LONG
                     ).show()
-                    buttonsRow.visibility = View.GONE
                 }
                 lastLocalizeTime = System.currentTimeMillis()
                 inLocalizeProgressFlag = false
@@ -305,174 +225,50 @@ class MainActivity : AppCompatActivity() {
         ViewRenderable.builder()
             .setView(this, R.layout.layout_sticker)
             .build()
-            .thenAccept { viewRenderable ->
-                viewRenderable.view.findViewById<TextView>(R.id.text).text = text
-                //val forward = arSceneView.scene.camera.forward
-                //val cameraPosition = arSceneView.scene.camera.worldPosition
-                val position = Vector3(pos.x, pos.y, pos.z)
-                //val position = cameraPosition + forward
-                //val direction = cameraPosition - position
-                //direction.y = position.y
-
+            .thenAccept { it ->
+                it.view.findViewById<TextView>(R.id.text).text = text
+                val pos: Pose = syncPose.compose(
+                    Pose.makeTranslation(
+                        pos.x,
+                        pos.y,
+                        pos.z
+                    )
+                )
+                val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
+                val anchorNode = AnchorNode(anchor)
+                anchorNode.setParent(arSceneView.scene)
                 Node().apply {
-                    worldPosition = position
-                    renderable = viewRenderable
-                    setParent(arSceneView.scene)
-                    //setLookDirection(direction)
-                }
-
-
-                //val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
-                //val anchorNode = AnchorNode(anchor)
-                //anchorNode.setParent(arSceneView.scene)
-                // Create the arrow node and add it to the anchor.
-                //val node = Node()
-                //node.setParent(anchorNode)
-
-                //Node().apply {
-                //    //worldPosition = position
-                //    renderable = viewRenderable
-                //    setParent(anchorNode)
-                //    //setLookDirection(direction)
-                //}
-
-
-            }
-    }
-
-    private fun add2dObject(text: String) {
-        ViewRenderable.builder()
-            .setView(this, R.layout.layout_sticker)
-            .build()
-            .thenAccept { viewRenderable ->
-                viewRenderable.view.findViewById<TextView>(R.id.text).text = text
-                val forward = arSceneView.scene.camera.forward
-                val cameraPosition = arSceneView.scene.camera.worldPosition
-                val position = cameraPosition + forward
-                //val direction = cameraPosition - position
-                //direction.y = position.y
-
-                Node().apply {
-                    worldPosition = position
-                    renderable = viewRenderable
-                    setParent(arSceneView.scene)
-                    //setLookDirection(direction)
+                    renderable = it
+                    setParent(anchorNode)
+                    localRotation =
+                        com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 0f, 1f), 90f)
                 }
             }
     }
 
-    private fun makeTransformationSystem(): TransformationSystem {
-        val footprintSelectionVisualizer = FootprintSelectionVisualizer()
-        return TransformationSystem(resources.displayMetrics, footprintSelectionVisualizer)
-    }
-
-
-    private fun add3dObject() {
-        ModelRenderable.builder()
-            .setSource(arFragment.context, Uri.parse(MODEL_3D))
-            .build()
-            .thenAcceptAsync { modelRenderable ->
-                //val forward = arSceneView.scene.camera.forward
-                //val cameraPosition = arSceneView.scene.camera.worldPosition
-                //val position = cameraPosition + forward
-                //val direction = cameraPosition - position
-                //direction.y = position.y
-
-
-                val forward: Vector3 = arSceneView.scene.camera.forward
-                val worldPosition: Vector3 = arSceneView.scene.camera.worldPosition
-                val positon = Vector3.add(forward, worldPosition)
-
-                val direction = Vector3.subtract(worldPosition, positon)
-                direction.y = positon.y
-
-                val transformationSystem = makeTransformationSystem()
-                val transformableNode = TransformableNode(transformationSystem).apply {
-                    rotationController.isEnabled = true
-                    scaleController.isEnabled = true
-                    translationController.isEnabled = false // not support
-                    setParent(arSceneView.scene)
-                    this.renderable = modelRenderable // Build using CompletableFuture
-                }
-                transformableNode.select()
-
-                arSceneView.scene.addOnPeekTouchListener { hitTestResult, motionEvent ->
-                    transformationSystem.onTouch(hitTestResult, motionEvent)
-                }
-            }
-    }
-
-
-    private fun onUpdateFrame(frameTime: FrameTime) {
+    private fun onUpdateSceneFrame(frameTime: FrameTime) {
         val frame: Frame = arSceneView.arFrame ?: return
         val time = System.currentTimeMillis()
         val delta = time - lastLocalizeTime
-        if (delta >= LOCALIZE_INTERVAL && lastLocation != null && prepareLocalizationDone && !inLocalizeProgressFlag) {
-            inLocalizeProgressFlag = true
-            syncPose = frame.camera.pose
-            var imageData: ByteArray? = null
-            try {
-                val image: Image = frame.acquireCameraImage();
-                imageData = image.toByteArray()
-                image.close()
-            } catch (e: NotYetAvailableException) {
-                Log.d(TAG, "NotYetAvailableException: $e")
-            }
-            if (imageData != null) {
-                localization(imageData)
-            } else {
-                inLocalizeProgressFlag = false
+        if (frame.camera.trackingState === TrackingState.TRACKING) {
+            if (delta >= LOCALIZE_INTERVAL && currentLocation != null && prepareLocalizationDone && !inLocalizeProgressFlag) {
+                inLocalizeProgressFlag = true
+                var imageData: ByteArray? = null
+                try {
+                    val image: Image = frame.acquireCameraImage()
+                    imageData = image.toByteArray()
+                    image.close()
+                    syncPose = frame.camera.pose
+                } catch (e: NotYetAvailableException) {
+                    Log.d(TAG, "NotYetAvailableException: $e")
+                }
+                if (imageData != null) {
+                    localization(imageData)
+                } else {
+                    inLocalizeProgressFlag = false
+                }
             }
         }
-
-//TODO NOT REMOVE
-//            //get the trackables to ensure planes are detected
-//            val var3 = frame.getUpdatedTrackables(Plane::class.java).iterator()
-//            while (var3.hasNext()) {
-//                val plane = var3.next() as Plane
-//
-//                //If a plane has been detected & is being tracked by ARCore
-//                if (plane.trackingState == TrackingState.TRACKING) {
-//
-//
-//                    //Get all added anchors to the frame
-//                    val iterableAnchor = frame.updatedAnchors.iterator()
-//
-//                    //place the first object only if no previous anchors were added
-//                    if (!iterableAnchor.hasNext()) {
-//                        //Perform a hit test at the center of the screen to place an object without tapping
-//
-//                        val point = getScreenCenter()
-//                        val hitTest = frame.hitTest(point.x.toFloat(), point.y.toFloat())
-//
-//                        //iterate through all hits
-//                        val hitTestIterator = hitTest.iterator()
-//                        while (hitTestIterator.hasNext()) {
-//                            val hitResult = hitTestIterator.next()
-//
-//                            //Create an anchor at the plane hit
-//                            val modelAnchor = plane.createAnchor(hitResult.hitPose)
-//
-//                            //Attach a node to this anchor with the scene as the parent
-//                            val anchorNode = AnchorNode(modelAnchor)
-//                            anchorNode.setParent(arSceneView.scene)
-//
-//                            //create a new TranformableNode that will carry our object
-//                            val transformableNode = TransformableNode(arFragment.transformationSystem)
-//                            transformableNode.setParent(anchorNode)
-//                            transformableNode.renderable = this@MainActivity.modelRenderable
-//
-//                            //Alter the real world position to ensure object renders on the table top. Not somewhere inside.
-//                            transformableNode.worldPosition = Vector3(
-//                                modelAnchor.pose.tx(),
-//                                modelAnchor.pose.compose(Pose.makeTranslation(0f, 0.05f, 0f)).ty(),
-//                                modelAnchor.pose.tz()
-//                            )
-//                        }
-//                    }
-//                }
-//            }
-
     }
 
     private fun isAllPermissionsGranted() =
@@ -541,11 +337,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getScreenCenter(): Point {
-        val vw = findViewById<View>(android.R.id.content)
-        return Point(vw.width / 2, vw.height / 2)
-    }
-
     private fun createLocationRequest(): LocationRequest =
         LocationRequest
             .create()
@@ -598,10 +389,10 @@ class MainActivity : AppCompatActivity() {
 
     private val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-            if (lastLocation == null) {
+            if (currentLocation == null) {
                 prepareLocalization(location)
             }
-            lastLocation = location
+            currentLocation = location
             Log.d(TAG, "onLocationChanged: $location")
         }
 
@@ -641,6 +432,7 @@ fun createMultipartBody(
     return MultipartBody.Part.createFormData("image", null, createRequestBody(byteArray))
 }
 
+// convert scene image to jpg
 fun Image.toByteArray(): ByteArray {
     val yBuffer = planes[0].buffer
     val uBuffer = planes[1].buffer
