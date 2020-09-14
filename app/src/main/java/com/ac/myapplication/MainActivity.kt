@@ -235,9 +235,7 @@ class MainActivity : AppCompatActivity() {
     private fun getStickerText(resp: LocalizationResult, id: String): String{
         var ret: String = ""
         if(!resp.objects.isNullOrEmpty()){
-
             resp.objects!!.iterator().forEach {
-                //Log.d(TAG, "sticker: "+it+", стикер: "+it.sticker)
                 if(it.placeholder.placeholderId == id){
                     ret = (if(it.sticker.get("sticker_text")!=null) it.sticker.get("sticker_text") else "") as String
                     return ret
@@ -263,17 +261,10 @@ class MainActivity : AppCompatActivity() {
                 val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
                 val anchorNode = AnchorNode(anchor)
                 anchorNode.setParent(arSceneView.scene)
-                //val cameraPosition = arSceneView.scene.camera.worldPosition
-                //val direction = cameraPosition - anchorNode.worldPosition
-                //direction.y = anchorNode.worldPosition.y
-
                 Node().apply {
                     renderable = it
                     (renderable as ViewRenderable).sizer = FixedWidthViewSizer(STICKER_WIDTH_IN_METERS)
                     setParent(anchorNode)
-
-                    //setLookDirection(direction)
-
                     localRotation =
                         com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 0f, 1f), 90f)
 
