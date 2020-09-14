@@ -32,7 +32,7 @@ data class ImageDescription (
     val mirrored: kotlin.Boolean? = null,
     /* Clockwise camera rotation */
     @Json(name = "rotation")
-    val rotation: ImageDescription.Rotation? = null
+    val rotation: ImageDescription.Rotation? -> Int
 ) {
 
     /**

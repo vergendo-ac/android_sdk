@@ -33,8 +33,12 @@ mv reloc-api/src/main/kotlin reloc-api/src/main/java
 rm -rf reloc-api/settings.gradle
 cp -f reloc-api/build.gradle.lock reloc-api/build.gradle
 
-# # Dirty Fix json adapters and gix docker permissions
+# # Dirty Fix json adapters and fix docker permissions
 sudo chown -R $(id -u):$(id -g) reloc-api -R && \
 sed -i 's/LocalizationStatus.Code/Int/' reloc-api/src/main/java/com/ac/api/models/LocalizationStatus.kt && \
 sed -i 's/PrepareStatus.Code/Int/' reloc-api/src/main/java/com/ac/api/models/PrepareStatus.kt
+
+sed -i 's/kotlin.Float/kotlin.Double/' reloc-api/src/main/java/com/ac/api/models/ImageDescriptionGps.kt
+
+sed -i 's/Rotation? = null/Rotation? -> Int/' reloc-api/src/main/java/com/ac/api/models/ImageDescription.kt
 

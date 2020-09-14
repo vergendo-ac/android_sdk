@@ -24,12 +24,12 @@ import com.squareup.moshi.Json
 
 data class ImageDescriptionGps (
     @Json(name = "latitude")
-    val latitude: kotlin.Float,
+    val latitude: kotlin.Double,
     @Json(name = "longitude")
-    val longitude: kotlin.Float,
+    val longitude: kotlin.Double,
     @Json(name = "altitude")
-    val altitude: kotlin.Float? = null,
+    val altitude: kotlin.Double? = null,
     @Json(name = "hdop")
-    val hdop: kotlin.Float? = null
+    val hdop: kotlin.Double? = null
 )
 
