@@ -1,4 +1,4 @@
-package com.doors.tourist2.utils.kotlinMath
+package com.ac.utils.math
 
 /*
  * Copyright (C) 2017 Romain Guy

@@ -57,7 +57,7 @@ dependencies {
 
 apply plugin: 'com.google.ar.sceneform.plugin'
 
-sceneform.asset('sampledata/Star_01.obj',
-        'default',
-        'sampledata/Star_01.sfa',
-        'src/main/assets/object')
+//sceneform.asset('sampledata/Star_01.obj',
+//        'default',
+//        'sampledata/Star_01.sfa',
+//        'src/main/assets/object')

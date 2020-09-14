@@ -22,10 +22,10 @@ import androidx.core.app.ActivityCompat
 import com.doors.api.apis.LocalizerApi
 import com.doors.api.infrastructure.ApiClient
 import com.doors.api.models.*
-import com.doors.tourist2.utils.kotlinMath.Float3
-import com.doors.tourist2.utils.kotlinMath.Float4
-import com.doors.tourist2.utils.kotlinMath.Mat4
-import com.doors.tourist2.utils.kotlinMath.transpose
+import com.ac.utils.math.Float3
+import com.ac.utils.math.Float4
+import com.ac.utils.math.Mat4
+import com.ac.utils.math.transpose
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
