@@ -1,0 +1,17 @@
+@startuml
+== Prepare ==
+activate MainActivity
+MainActivity -> AugmentedCityAPI : prepareLocalization
+note right: Send lat, lon
+return <b>PrepareResult</b> status
+== Localize ==
+group Update loop
+MainActivity -> MainActivity : onUpdateSceneFrame
+MainActivity -> AugmentedCityAPI : localization
+note right: Send lat, lon, alt, image
+return <b>LocalizationResult</b> see docs
+end
+deactivate MainActivity
+@enduml
+
+

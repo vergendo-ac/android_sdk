@@ -12,6 +12,8 @@ The Augmented City demo app demonstrates how to use AC api.
 1. Prepare your location using steps above
 2. Run the app on your Android device.
 
+![Sequence diagram](doc/seq.png?raw=true "Sequence diagram")
+
 ## Supported Environments
 JDK version >= 1.8 is recommended.
 
