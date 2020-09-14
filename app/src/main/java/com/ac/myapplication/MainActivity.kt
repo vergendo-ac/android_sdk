@@ -37,9 +37,13 @@ import com.google.ar.core.exceptions.NotYetAvailableException
 import com.google.ar.sceneform.*
 import com.google.ar.sceneform.Camera
 import com.google.ar.sceneform.math.Vector3
+import com.google.ar.sceneform.rendering.FixedWidthViewSizer
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.invoke
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -65,6 +69,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.CAMERA
         )
         const val TAG = "MainActivity"
+        const val STICKER_WIDTH_IN_METERS = 0.3f
     }
 
     private lateinit var context: Context
@@ -93,7 +98,10 @@ class MainActivity : AppCompatActivity() {
             setInstructionView(null)
         }
 
+
         arSceneView = arFragment.arSceneView
+        arSceneView.planeRenderer.isEnabled = false
+
         settingsClient = LocationServices.getSettingsClient(this)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         requestPermissions()
@@ -255,11 +263,20 @@ class MainActivity : AppCompatActivity() {
                 val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
                 val anchorNode = AnchorNode(anchor)
                 anchorNode.setParent(arSceneView.scene)
+                //val cameraPosition = arSceneView.scene.camera.worldPosition
+                //val direction = cameraPosition - anchorNode.worldPosition
+                //direction.y = anchorNode.worldPosition.y
+
                 Node().apply {
                     renderable = it
+                    (renderable as ViewRenderable).sizer = FixedWidthViewSizer(STICKER_WIDTH_IN_METERS)
                     setParent(anchorNode)
+
+                    //setLookDirection(direction)
+
                     localRotation =
                         com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 0f, 1f), 90f)
+
                 }
             }
     }
