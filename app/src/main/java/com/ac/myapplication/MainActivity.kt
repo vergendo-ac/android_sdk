@@ -121,8 +121,8 @@ class MainActivity : AppCompatActivity() {
         Dispatchers.Default {
             var result: LocalizationResult? = null
             val webService = apiClient.createService(LocalizerApi::class.java)
-            val gps = ImageDescriptionGps(location.latitude.toFloat(), location.longitude.toFloat(), location.altitude.toFloat())
-            val imageDesc = ImageDescription(gps, null, null, ImageDescription.Rotation._90)
+            val gps = ImageDescriptionGps(location.latitude, location.longitude, location.altitude)
+            val imageDesc = ImageDescription(gps, null, null, 90)
             val mp = createMultipartBody(image)
             val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp)
             try {
@@ -183,10 +183,13 @@ class MainActivity : AppCompatActivity() {
                     }.toTypedArray()
 
                     clearSceneObjects()
+
+                    getStickerText(response, "")
+
                     var cnt = 0
                     objectsToPlace.iterator().forEach {
                         Log.d(TAG, "object[" + cnt + "] = " + it.position)
-                        add2dObjectPos(it.id, it.position)
+                        add2dObjectPos(getStickerText(response,it.id), it.position)
                         cnt++
                     }
                     Toast.makeText(
@@ -219,6 +222,21 @@ class MainActivity : AppCompatActivity() {
                 prepareLocalizationDone = true
             }
         }
+    }
+
+    private fun getStickerText(resp: LocalizationResult, id: String): String{
+        var ret: String = ""
+        if(!resp.objects.isNullOrEmpty()){
+
+            resp.objects!!.iterator().forEach {
+                //Log.d(TAG, "sticker: "+it+", стикер: "+it.sticker)
+                if(it.placeholder.placeholderId == id){
+                    ret = (if(it.sticker.get("sticker_text")!=null) it.sticker.get("sticker_text") else "") as String
+                    return ret
+                }
+            }
+        }
+        return ret;
     }
 
     private fun add2dObjectPos(text: String, pos: Vector3d) {

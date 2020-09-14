@@ -26,8 +26,8 @@ class LocalizeTest : StringSpec({
             println(it)
         }
         val webService = apiClient.createService(LocalizerApi::class.java)
-        val gps = ImageDescriptionGps(60.0309083F, 30.2414354F, 68.5F)
-        val imageDesc = ImageDescription(gps, null, null, ImageDescription.Rotation._90)
+        val gps = ImageDescriptionGps(60.0309083, 30.2414354, 68.5)
+        val imageDesc = ImageDescription(gps, null, null, 90)
         val image = LocalizeTest::class.java.getResource("image.jpg")!!.readBytes()
         val mp = createMultipartBody(image)
 
@@ -35,6 +35,10 @@ class LocalizeTest : StringSpec({
         try {
             val response: Response<LocalizationResult> = result.execute()
             println("LocalizationResult:" + response.body())
+            // тут всегда будет срабатывать, нужен код который оценит
+            // что camera=Camera(pose=Pose(position=Vector3d(x=-3.2284274, y=2.4958546, z=-0.5517299),
+            // orientation=Quaternion(w=0.9951804, x=0.078717366, y=0.05244493, z=0.025866553)))
+            // значения этих координат не сильно отличаются
             Assertions.assertEquals(
                 EXP, response.body()
             )
