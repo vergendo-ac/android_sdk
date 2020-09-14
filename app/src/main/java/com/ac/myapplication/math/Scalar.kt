@@ -1,6 +1,6 @@
 @file:Suppress("NOTHING_TO_INLINE")
 
-package com.ac.utils.math
+package com.ac.myapplication.math
 
 /*
  * Copyright (C) 2017 Romain Guy
