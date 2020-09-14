@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity()
         const val LOCALIZE_INTERVAL = 3000
         const val DEFAULT_LOCATION_UPDATE_INTERVAL = 1000L
         const val REQUEST_PERMISSIONS = 1000
-        const val SERVER_URL = "http://developer.augmented.city:5000/api/v2"
+        const val SERVER_URL = "http://developer.augmented.city/api/v2"
         val PERMISSIONS = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -93,7 +93,6 @@ class MainActivity : AppCompatActivity()
             setInstructionView(null)
         }
 
-
         arSceneView = arFragment.arSceneView
         arSceneView.planeRenderer.isEnabled = false
 
@@ -115,7 +114,7 @@ class MainActivity : AppCompatActivity()
                 Log.d(TAG, "PrepareResult: $result")
 
             } catch (ex: Exception) {
-                Log.d(TAG, "prepare error: ${ex.message}")
+                Log.d(TAG, "Prepare error: ${ex.message}")
             }
             return@Default result
         }
@@ -135,7 +134,7 @@ class MainActivity : AppCompatActivity()
                 result = response.body()
                 Log.d(TAG, "LocalizationResult: $result")
             } catch (ex: Exception) {
-                Log.d(TAG, "localize error: ${ex.message}")
+                Log.d(TAG, "Localize error: ${ex.message}")
             }
             return@Default result
         }

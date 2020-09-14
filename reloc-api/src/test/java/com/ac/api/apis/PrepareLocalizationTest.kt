@@ -3,11 +3,8 @@ package com.ac.api.apis
 import com.ac.api.infrastructure.ApiClient
 import com.ac.api.models.PrepareResult
 import io.kotlintest.specs.StringSpec
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Assertions.assertEquals
 import retrofit2.Call
 import retrofit2.Response
-import java.lang.ArithmeticException
 
 
 class PrepareLocalizationTest: StringSpec({

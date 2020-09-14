@@ -2,7 +2,6 @@ package com.ac.api.apis
 
 import com.ac.api.infrastructure.ApiClient
 import io.kotlintest.specs.StringSpec
-import okhttp3.logging.HttpLoggingInterceptor
 import org.junit.jupiter.api.Assertions.assertEquals
 import retrofit2.Call
 import retrofit2.Response

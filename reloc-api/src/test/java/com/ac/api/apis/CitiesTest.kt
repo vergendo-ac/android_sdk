@@ -1,7 +1,6 @@
 package com.ac.api.apis
 
 import com.ac.api.infrastructure.ApiClient
-import com.ac.api.models.PrepareResult
 import com.ac.api.models.ReconstructedCity
 import io.kotlintest.specs.StringSpec
 import retrofit2.Call
