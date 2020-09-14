@@ -1,0 +1,2 @@
+include ':app', ':reloc-api'
+rootProject.name = "My Application"

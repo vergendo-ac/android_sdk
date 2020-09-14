@@ -5,7 +5,7 @@ sudo chown -R $(id -u):$(id -g) reloc-api -R
 
 swagger="doc/swagger.yaml"
 
-curl http://developer.augmented.city:15000/spec/v2 -o $swagger
+curl http://developer.augmented.city/spec/v2 -o $swagger
 
 docker run \
   --rm \
@@ -16,11 +16,11 @@ docker run \
       -i /usr/local/src/swagger.yaml \
       -g kotlin \
       -o /usr/local/dist \
-      --package-name com.doors.api \
+      --package-name com.ac.api \
       --library jvm-retrofit2 \
-      --artifact-id doors-api \
+      --artifact-id ac-api \
       --artifact-version 2.0.0 \
-      --group-id com.doors.api
+      --group-id com.ac.api
       #--source-folder src/main doesn't work for some reason
 
 # Patches:
@@ -33,8 +33,12 @@ mv reloc-api/src/main/kotlin reloc-api/src/main/java
 rm -rf reloc-api/settings.gradle
 cp -f reloc-api/build.gradle.lock reloc-api/build.gradle
 
-# # Dirty Fix json adapters and gix docker permissions
+# # Dirty Fix json adapters and fix docker permissions
 sudo chown -R $(id -u):$(id -g) reloc-api -R && \
-sed -i 's/LocalizationStatus.Code/Int/' reloc-api/src/main/java/com/doors/api/models/LocalizationStatus.kt && \
-sed -i 's/PrepareStatus.Code/Int/' reloc-api/src/main/java/com/doors/api/models/PrepareStatus.kt
+sed -i 's/LocalizationStatus.Code/Int/' reloc-api/src/main/java/com/ac/api/models/LocalizationStatus.kt && \
+sed -i 's/PrepareStatus.Code/Int/' reloc-api/src/main/java/com/ac/api/models/PrepareStatus.kt
+
+sed -i 's/kotlin.Float/kotlin.Double/' reloc-api/src/main/java/com/ac/api/models/ImageDescriptionGps.kt
+
+sed -i 's/ImageDescription.Rotation? = null/Int? = null/' reloc-api/src/main/java/com/ac/api/models/ImageDescription.kt
 

@@ -4,14 +4,13 @@ apply plugin: "kotlin-kapt"
 apply plugin: "kotlin-android-extensions"
 
 android {
-    compileSdkVersion(androidVersions.compileSdkVersion)
-
+    compileSdkVersion 30
 
     defaultConfig {
-        minSdkVersion(androidVersions.minSdkVersion)
-        targetSdkVersion(androidVersions.targetSdkVersion)
-        versionCode = relocVersions.versionCode
-        versionName = relocVersions.versionName
+        minSdkVersion 24
+        targetSdkVersion 30
+        versionCode = 1
+        versionName = "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
