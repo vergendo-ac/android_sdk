@@ -12,8 +12,13 @@ import com.ac.myapplication.math.Mat4
 import com.ac.myapplication.math.transpose
 import com.google.ar.core.Pose
 import com.google.ar.sceneform.math.Vector3
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
+import java.io.File
 
 operator fun Vector3.plus(other: Vector3): Vector3 {
     return Vector3.add(this, other)
@@ -108,3 +113,18 @@ fun Image.toByteArray(): ByteArray {
     return out.toByteArray()
 }
 
+
+fun createRequestBody(data: Any): RequestBody {
+    return when (data) {
+        is ByteArray -> {
+            data.toRequestBody("multipart/form-data".toMediaTypeOrNull(), 0, data.size)
+        }
+        is File -> {
+            data.asRequestBody("multipart/form-data".toMediaTypeOrNull())
+        }
+        is RequestBody -> {
+            return data
+        }
+        else -> throw IllegalArgumentException("Should be File or ByteArray")
+    }
+}

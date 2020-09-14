@@ -33,10 +33,7 @@ import com.google.ar.sceneform.math.Vector3
 import com.google.ar.sceneform.rendering.FixedWidthViewSizer
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.invoke
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -50,6 +47,7 @@ data class Placeholder(val position: Vector3d = Vector3d(0.0f, 0.0f,0.0f),
                        val id: String = "")
 
 
+@Suppress("IMPLICIT_CAST_TO_ANY")
 class MainActivity : AppCompatActivity()
 {
     companion object {
@@ -83,6 +81,7 @@ class MainActivity : AppCompatActivity()
     private var prepareLocalizationDone: Boolean = false
 
 
+    @ExperimentalCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -104,6 +103,7 @@ class MainActivity : AppCompatActivity()
         arSceneView.scene.addOnUpdateListener { onUpdateSceneFrame(it) }
     }
 
+    @ExperimentalCoroutinesApi
     private suspend fun makeNetworkPrepareLocalizeCall(lat: Double, lon: Double) =
         Dispatchers.Default {
             var result: PrepareResult? = null
@@ -121,6 +121,7 @@ class MainActivity : AppCompatActivity()
         }
 
 
+    @ExperimentalCoroutinesApi
     private suspend fun makeNetworkLocalizeCall(image: ByteArray, location: Location) =
         Dispatchers.Default {
             var result: LocalizationResult? = null
@@ -151,6 +152,7 @@ class MainActivity : AppCompatActivity()
         }
     }
 
+    @ExperimentalCoroutinesApi
     private fun localization(imageData: ByteArray) {
         CoroutineScope(Dispatchers.Main).launch {
             val location = Location(currentLocation)
@@ -180,10 +182,7 @@ class MainActivity : AppCompatActivity()
 
                     val objectsToPlace = points.map {
                         val pos = it.position.toLocal(matrix)
-                        when (it) {
-                            is Placeholder -> it.copy(position = pos)
-                            else -> IllegalStateException()
-                        } as Placeholder
+                        it.copy(position = pos)
                     }.toTypedArray()
 
                     clearSceneObjects()
@@ -214,6 +213,7 @@ class MainActivity : AppCompatActivity()
         }
     }
 
+    @ExperimentalCoroutinesApi
     private fun prepareLocalization(location: Location) {
         CoroutineScope(Dispatchers.Main).launch {
             val result = makeNetworkPrepareLocalizeCall(location.latitude, location.longitude)
@@ -238,7 +238,7 @@ class MainActivity : AppCompatActivity()
                 }
             }
         }
-        return ret;
+        return ret
     }
 
     private fun add2dObjectPos(text: String, pos: Vector3d) {
@@ -247,14 +247,14 @@ class MainActivity : AppCompatActivity()
             .build()
             .thenAccept { it ->
                 it.view.findViewById<TextView>(R.id.text).text = text
-                val pos: Pose = syncPose.compose(
+                val trPos: Pose = syncPose.compose(
                     Pose.makeTranslation(
                         pos.x,
                         pos.y,
                         pos.z
                     )
                 )
-                val anchor: Anchor = arSceneView.session!!.createAnchor(pos)
+                val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
                 val anchorNode = AnchorNode(anchor)
                 anchorNode.setParent(arSceneView.scene)
                 Node().apply {
@@ -268,6 +268,7 @@ class MainActivity : AppCompatActivity()
             }
     }
 
+    @ExperimentalCoroutinesApi
     private fun onUpdateSceneFrame(frameTime: FrameTime) {
         val frame: Frame = arSceneView.arFrame ?: return
         val time = System.currentTimeMillis()
@@ -327,11 +328,13 @@ class MainActivity : AppCompatActivity()
         }
     }
 
+    @ExperimentalCoroutinesApi
     override fun onResume() {
         super.onResume()
         startLocationUpdates()
     }
 
+    @ExperimentalCoroutinesApi
     private fun startLocationUpdates() {
         turnGPSOn()
         if (ActivityCompat.checkSelfPermission(
@@ -409,6 +412,7 @@ class MainActivity : AppCompatActivity()
         finish()
     }
 
+    @ExperimentalCoroutinesApi
     private val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             if (currentLocation == null) {
@@ -433,19 +437,6 @@ class MainActivity : AppCompatActivity()
     }
 }
 
-fun createRequestBody(data: Any): RequestBody {
-    return when (data) {
-        is ByteArray -> {
-            data.toRequestBody("multipart/form-data".toMediaTypeOrNull(), 0, data.size)
-        }
-        is File -> {
-            data.asRequestBody("multipart/form-data".toMediaTypeOrNull())
-        }
-        is RequestBody -> {
-            return data
-        }
-        else -> throw IllegalArgumentException("Should be File or ByteArray")
-    }
-}
+
 
 
