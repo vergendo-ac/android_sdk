@@ -40,5 +40,5 @@ sed -i 's/PrepareStatus.Code/Int/' reloc-api/src/main/java/com/ac/api/models/Pre
 
 sed -i 's/kotlin.Float/kotlin.Double/' reloc-api/src/main/java/com/ac/api/models/ImageDescriptionGps.kt
 
-sed -i 's/Rotation? = null/Rotation? -> Int/' reloc-api/src/main/java/com/ac/api/models/ImageDescription.kt
+sed -i 's/ImageDescription.Rotation? = null/Int? = null/' reloc-api/src/main/java/com/ac/api/models/ImageDescription.kt
 
