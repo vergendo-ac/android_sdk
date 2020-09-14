@@ -19,9 +19,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import com.doors.api.apis.LocalizerApi
-import com.doors.api.infrastructure.ApiClient
-import com.doors.api.models.*
+import com.ac.api.apis.LocalizerApi
+import com.ac.api.infrastructure.ApiClient
+import com.ac.api.models.*
 import com.ac.utils.math.Float3
 import com.ac.utils.math.Float4
 import com.ac.utils.math.Mat4
@@ -121,8 +121,8 @@ class MainActivity : AppCompatActivity() {
         Dispatchers.Default {
             var result: LocalizationResult? = null
             val webService = apiClient.createService(LocalizerApi::class.java)
-            val gps = ImageDescriptionGps(location.latitude, location.longitude, location.altitude)
-            val imageDesc = ImageDescription(gps, null, null, 90)
+            val gps = ImageDescriptionGps(location.latitude.toFloat(), location.longitude.toFloat(), location.altitude.toFloat())
+            val imageDesc = ImageDescription(gps, null, null, ImageDescription.Rotation._90)
             val mp = createMultipartBody(image)
             val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp)
             try {

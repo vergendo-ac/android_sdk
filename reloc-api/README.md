@@ -1,4 +1,4 @@
-# com.doors.api - Kotlin client library for Augmented City API
+# com.ac.api - Kotlin client library for Augmented City API
 
 ## Requires
 
@@ -44,26 +44,26 @@ Class | Method | HTTP request | Description
 <a name="documentation-for-models"></a>
 ## Documentation for Models
 
- - [com.doors.api.models.ARObject](docs/ARObject.md)
- - [com.doors.api.models.AddObjectResult](docs/AddObjectResult.md)
- - [com.doors.api.models.AddObjectStatus](docs/AddObjectStatus.md)
- - [com.doors.api.models.Camera](docs/Camera.md)
- - [com.doors.api.models.ImageDescription](docs/ImageDescription.md)
- - [com.doors.api.models.ImageDescriptionGps](docs/ImageDescriptionGps.md)
- - [com.doors.api.models.InlineObject](docs/InlineObject.md)
- - [com.doors.api.models.LocalizationResult](docs/LocalizationResult.md)
- - [com.doors.api.models.LocalizationStatus](docs/LocalizationStatus.md)
- - [com.doors.api.models.Placeholder](docs/Placeholder.md)
- - [com.doors.api.models.PlaceholderNode3d](docs/PlaceholderNode3d.md)
- - [com.doors.api.models.Pose](docs/Pose.md)
- - [com.doors.api.models.PrepareResult](docs/PrepareResult.md)
- - [com.doors.api.models.PrepareStatus](docs/PrepareStatus.md)
- - [com.doors.api.models.Quaternion](docs/Quaternion.md)
- - [com.doors.api.models.ReconstructedCity](docs/ReconstructedCity.md)
- - [com.doors.api.models.ReconstructedCityGps](docs/ReconstructedCityGps.md)
- - [com.doors.api.models.Surface](docs/Surface.md)
- - [com.doors.api.models.Vector2d](docs/Vector2d.md)
- - [com.doors.api.models.Vector3d](docs/Vector3d.md)
+ - [com.ac.api.models.ARObject](docs/ARObject.md)
+ - [com.ac.api.models.AddObjectResult](docs/AddObjectResult.md)
+ - [com.ac.api.models.AddObjectStatus](docs/AddObjectStatus.md)
+ - [com.ac.api.models.Camera](docs/Camera.md)
+ - [com.ac.api.models.ImageDescription](docs/ImageDescription.md)
+ - [com.ac.api.models.ImageDescriptionGps](docs/ImageDescriptionGps.md)
+ - [com.ac.api.models.InlineObject](docs/InlineObject.md)
+ - [com.ac.api.models.LocalizationResult](docs/LocalizationResult.md)
+ - [com.ac.api.models.LocalizationStatus](docs/LocalizationStatus.md)
+ - [com.ac.api.models.Placeholder](docs/Placeholder.md)
+ - [com.ac.api.models.PlaceholderNode3d](docs/PlaceholderNode3d.md)
+ - [com.ac.api.models.Pose](docs/Pose.md)
+ - [com.ac.api.models.PrepareResult](docs/PrepareResult.md)
+ - [com.ac.api.models.PrepareStatus](docs/PrepareStatus.md)
+ - [com.ac.api.models.Quaternion](docs/Quaternion.md)
+ - [com.ac.api.models.ReconstructedCity](docs/ReconstructedCity.md)
+ - [com.ac.api.models.ReconstructedCityGps](docs/ReconstructedCityGps.md)
+ - [com.ac.api.models.Surface](docs/Surface.md)
+ - [com.ac.api.models.Vector2d](docs/Vector2d.md)
+ - [com.ac.api.models.Vector3d](docs/Vector3d.md)
 
 
 <a name="documentation-for-authorization"></a>

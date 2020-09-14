@@ -16,9 +16,9 @@ Localize uploaded image. Return camera pose and optional placeholders scene, sur
 ### Example
 ```kotlin
 // Import classes:
-//import com.doors.api.*
-//import com.doors.api.infrastructure.*
-//import com.doors.api.models.*
+//import com.ac.api.*
+//import com.ac.api.infrastructure.*
+//import com.ac.api.models.*
 
 val apiClient = ApiClient()
 val webService = apiClient.createWebservice(LocalizerApi::class.java)
@@ -56,9 +56,9 @@ Prepare for localization for given geolocation. Causes server to load nearby rec
 ### Example
 ```kotlin
 // Import classes:
-//import com.doors.api.*
-//import com.doors.api.infrastructure.*
-//import com.doors.api.models.*
+//import com.ac.api.*
+//import com.ac.api.infrastructure.*
+//import com.ac.api.models.*
 
 val apiClient = ApiClient()
 val webService = apiClient.createWebservice(LocalizerApi::class.java)
