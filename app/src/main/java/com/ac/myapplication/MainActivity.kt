@@ -190,9 +190,11 @@ class MainActivity : AppCompatActivity()
                         if(inScene==null){
                             sceneObjects[it.id] = it
                             add2dObjectPos(it)
-                        }else{
-                            update2dObjectPos(inScene)
                         }
+                        // todo update or not
+                        //else{
+                        //    update2dObjectPos(inScene)
+                        //}
                     }
                     Toast.makeText(
                         context,
@@ -200,8 +202,10 @@ class MainActivity : AppCompatActivity()
                         Toast.LENGTH_LONG
                     ).show()
                 } else {
-                    clearSceneObjects()
-                    sceneObjects.clear()
+                    // TODO clear or not clear
+                    //clearSceneObjects()
+                    //sceneObjects.clear()
+
                     Toast.makeText(
                         context,
                         response.toString(),
