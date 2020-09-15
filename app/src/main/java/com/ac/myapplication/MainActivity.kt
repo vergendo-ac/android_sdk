@@ -185,7 +185,7 @@ class MainActivity : AppCompatActivity()
 
                     objectsToPlace.iterator().forEach {
                         it.txt = getStickerText(response,it.id)
-                        Log.d(TAG, "it = "+it)
+
                         val inScene = sceneObjects[it.id]
                         if(inScene==null){
                             sceneObjects[it.id] = it
@@ -200,6 +200,8 @@ class MainActivity : AppCompatActivity()
                         Toast.LENGTH_LONG
                     ).show()
                 } else {
+                    clearSceneObjects()
+                    sceneObjects.clear()
                     Toast.makeText(
                         context,
                         response.toString(),
@@ -232,7 +234,7 @@ class MainActivity : AppCompatActivity()
         if(!resp.objects.isNullOrEmpty()){
             resp.objects!!.iterator().forEach {
                 if(it.placeholder.placeholderId == id){
-                    ret = (if(it.sticker.get("sticker_text")!=null) it.sticker.get("sticker_text") else "") as String
+                    ret = (if(it.sticker["sticker_text"] !=null) it.sticker.get("sticker_text") else "") as String
                     return ret
                 }
             }
