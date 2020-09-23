@@ -11,8 +11,8 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/ac-api" />
             <option value="$PROJECT_DIR$/app" />
-            <option value="$PROJECT_DIR$/reloc-api" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />

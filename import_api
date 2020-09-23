@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 #library: multiplatform, jvm-retrofit2, jvm-okhttp3
-sudo chown -R $(id -u):$(id -g) reloc-api -R
+sudo chown -R $(id -u):$(id -g) ac-api -R
 
 swagger="doc/swagger.yaml"
 
@@ -10,7 +10,7 @@ curl http://developer.augmented.city/spec/v2 -o $swagger
 docker run \
   --rm \
   -v $PWD/doc:/usr/local/src \
-  -v $PWD/reloc-api:/usr/local/dist \
+  -v $PWD/ac-api:/usr/local/dist \
   openapitools/openapi-generator-cli \
     generate \
       -i /usr/local/src/swagger.yaml \
@@ -26,19 +26,21 @@ docker run \
 # Patches:
 
 # Fix source-folder
-rm -rf reloc-api/src/main/java
-mv reloc-api/src/main/kotlin reloc-api/src/main/java
+rm -rf ac-api/src/main/java
+mv ac-api/src/main/kotlin ac-api/src/main/java
 
 # Fix gradle and remove settings
-rm -rf reloc-api/settings.gradle
-cp -f reloc-api/build.gradle.lock reloc-api/build.gradle
+rm -rf ac-api/settings.gradle
+cp -f ac-api/build.gradle.lock ac-api/build.gradle
 
 # # Dirty Fix json adapters and fix docker permissions
-sudo chown -R $(id -u):$(id -g) reloc-api -R && \
-sed -i 's/LocalizationStatus.Code/Int/' reloc-api/src/main/java/com/ac/api/models/LocalizationStatus.kt && \
-sed -i 's/PrepareStatus.Code/Int/' reloc-api/src/main/java/com/ac/api/models/PrepareStatus.kt
+sudo chown -R $(id -u):$(id -g) ac-api -R && \
+sed -i 's/LocalizationStatus.Code/Int/' ac-api/src/main/java/com/ac/api/models/LocalizationStatus.kt && \
+sed -i 's/PrepareStatus.Code/Int/' ac-api/src/main/java/com/ac/api/models/PrepareStatus.kt
 
-sed -i 's/kotlin.Float/kotlin.Double/' reloc-api/src/main/java/com/ac/api/models/ImageDescriptionGps.kt
+sed -i 's/kotlin.Float/kotlin.Double/' ac-api/src/main/java/com/ac/api/models/ImageDescriptionGps.kt
 
-sed -i 's/ImageDescription.Rotation? = null/Int? = null/' reloc-api/src/main/java/com/ac/api/models/ImageDescription.kt
+sed -i 's/ImageDescription.Rotation? = null/Int? = null/' ac-api/src/main/java/com/ac/api/models/ImageDescription.kt
+
+sed -i 's/.List>/.List<Any>>/' ac-api/src/main/java/com/ac/api/models/ScanPassage.kt
 

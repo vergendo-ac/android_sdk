@@ -125,9 +125,11 @@ class MainActivity : AppCompatActivity()
             var result: LocalizationResult? = null
             val webService = apiClient.createService(LocalizerApi::class.java)
             val gps = ImageDescriptionGps(location.latitude, location.longitude, location.altitude)
-            val imageDesc = ImageDescription(gps, null, null, 90)
+            val imageDesc = ImageDescription(gps, null, null, false,90)
             val mp = createMultipartBody(image)
-            val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp)
+            val hint = LocalizationHint( emptyList(), null)
+
+            val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp, hint)
             try {
                 val response: Response<LocalizationResult> = callResult.execute()
                 result = response.body()

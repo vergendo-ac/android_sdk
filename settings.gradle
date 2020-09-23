@@ -1,2 +1,2 @@
-include ':app', ':reloc-api'
+include ':app', ':ac-api'
 rootProject.name = "My Application"
