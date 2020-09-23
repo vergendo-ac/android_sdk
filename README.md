@@ -1,5 +1,8 @@
 # Augmented City Demo
 
+## Demo
+![Demo image](doc/demo.gif?raw=true "Demo app")
+
 ## Introduction
 The Augmented City demo app demonstrates how to use AC api.
 [Augmented City API](https://developer.augmented.city/doc)
@@ -16,9 +19,6 @@ The Augmented City demo app demonstrates how to use AC api.
 
 ## Supported Environments
 JDK version >= 1.8 is recommended.
-
-## Result
-![Demo image](doc/demo.jpg?raw=true "Demo app")
 
 ## License
 TBD
