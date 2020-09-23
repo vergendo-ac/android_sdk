@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.IntentSender
 import android.content.pm.PackageManager
+import android.graphics.Rect
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -34,17 +35,14 @@ import com.google.ar.sceneform.rendering.FixedWidthViewSizer
 import com.google.ar.sceneform.rendering.ViewRenderable
 import com.google.ar.sceneform.ux.ArFragment
 import kotlinx.coroutines.*
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Call
 import retrofit2.Response
-import java.io.File
 
 
-data class Placeholder(val position: Vector3d = Vector3d(0.0f, 0.0f,0.0f),
-                       val id: String = "")
+data class ArObject(val position: Vector3d = Vector3d(0.0f, 0.0f,0.0f),
+                    val id: String = "",
+                    var txt: String,
+                    var node : Node?)
 
 
 @Suppress("IMPLICIT_CAST_TO_ANY")
@@ -63,7 +61,7 @@ class MainActivity : AppCompatActivity()
             Manifest.permission.CAMERA
         )
         const val TAG = "MainActivity"
-        const val STICKER_WIDTH_IN_METERS = 0.3f
+        const val STICKER_WIDTH_IN_METERS = 0.9f
     }
 
     private lateinit var context: Context
@@ -80,6 +78,7 @@ class MainActivity : AppCompatActivity()
     private lateinit var locationManager: LocationManager
     private var prepareLocalizationDone: Boolean = false
 
+    private var sceneObjects = mutableMapOf<String, ArObject>()
 
     @ExperimentalCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -126,9 +125,11 @@ class MainActivity : AppCompatActivity()
             var result: LocalizationResult? = null
             val webService = apiClient.createService(LocalizerApi::class.java)
             val gps = ImageDescriptionGps(location.latitude, location.longitude, location.altitude)
-            val imageDesc = ImageDescription(gps, null, null, 90)
+            val imageDesc = ImageDescription(gps, null, null, false,90)
             val mp = createMultipartBody(image)
-            val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp)
+            val hint = LocalizationHint( emptyList(), null)
+
+            val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp, hint)
             try {
                 val response: Response<LocalizationResult> = callResult.execute()
                 result = response.body()
@@ -160,7 +161,7 @@ class MainActivity : AppCompatActivity()
                 if (response.status.code == RESPONSE_STATUS_CODE_OK) {
                     val camera = response.camera
 
-                    val points: List<Placeholder> =
+                    val points: List<ArObject> =
                         response.objects!!.mapNotNull { objectInfo ->
                             val id = objectInfo.placeholder.placeholderId
                             val node =
@@ -168,7 +169,7 @@ class MainActivity : AppCompatActivity()
                             node
                         }.map {
                             val position = it.pose.position.toFloatArray().asList().toVector3d()
-                            Placeholder(position, it.placeholderId)
+                            ArObject(position, it.placeholderId, "", null)
                         }.toList()
 
                     val matrix = srvToLocalTransform(
@@ -184,15 +185,18 @@ class MainActivity : AppCompatActivity()
                         it.copy(position = pos)
                     }.toTypedArray()
 
-                    clearSceneObjects()
-
-                    getStickerText(response, "")
-
-                    var cnt = 0
                     objectsToPlace.iterator().forEach {
-                        Log.d(TAG, "object[" + cnt + "] = " + it.position)
-                        add2dObjectPos(getStickerText(response,it.id), it.position)
-                        cnt++
+                        it.txt = getStickerText(response,it.id)
+
+                        val inScene = sceneObjects[it.id]
+                        if(inScene==null){
+                            sceneObjects[it.id] = it
+                            add2dObjectPos(it)
+                        }
+                        // todo update or not
+                        //else{
+                        //    update2dObjectPos(inScene)
+                        //}
                     }
                     Toast.makeText(
                         context,
@@ -200,6 +204,10 @@ class MainActivity : AppCompatActivity()
                         Toast.LENGTH_LONG
                     ).show()
                 } else {
+                    // TODO clear or not clear
+                    //clearSceneObjects()
+                    //sceneObjects.clear()
+
                     Toast.makeText(
                         context,
                         response.toString(),
@@ -232,7 +240,7 @@ class MainActivity : AppCompatActivity()
         if(!resp.objects.isNullOrEmpty()){
             resp.objects!!.iterator().forEach {
                 if(it.placeholder.placeholderId == id){
-                    ret = (if(it.sticker.get("sticker_text")!=null) it.sticker.get("sticker_text") else "") as String
+                    ret = (if(it.sticker["sticker_text"] !=null) it.sticker.get("sticker_text") else "") as String
                     return ret
                 }
             }
@@ -240,23 +248,42 @@ class MainActivity : AppCompatActivity()
         return ret
     }
 
-    private fun add2dObjectPos(text: String, pos: Vector3d) {
+    private fun update2dObjectPos(obj :ArObject) {
+        if(obj.node!=null){
+            val node = obj.node
+            val trPos: Pose = syncPose.compose(
+                Pose.makeTranslation(
+                    obj.position.x,
+                    obj.position.y,
+                    obj.position.z
+                )
+            )
+            val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
+            val anchorNode = AnchorNode(anchor)
+            anchorNode.setParent(arSceneView.scene)
+            node!!.setParent(anchorNode)
+            //node.parent
+        }
+    }
+
+    private fun add2dObjectPos(obj :ArObject) {
         ViewRenderable.builder()
             .setView(this, R.layout.layout_sticker)
             .build()
             .thenAccept { it ->
-                it.view.findViewById<TextView>(R.id.text).text = text
+                it.view.findViewById<TextView>(R.id.text).text = obj.txt
                 val trPos: Pose = syncPose.compose(
                     Pose.makeTranslation(
-                        pos.x,
-                        pos.y,
-                        pos.z
+                        obj.position.x,
+                        obj.position.y,
+                        obj.position.z
                     )
                 )
                 val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
                 val anchorNode = AnchorNode(anchor)
                 anchorNode.setParent(arSceneView.scene)
-                Node().apply {
+
+                val nodeAr = Node().apply {
                     renderable = it
                     (renderable as ViewRenderable).sizer = FixedWidthViewSizer(STICKER_WIDTH_IN_METERS)
                     setParent(anchorNode)
@@ -264,6 +291,7 @@ class MainActivity : AppCompatActivity()
                         com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 0f, 1f), 90f)
 
                 }
+                obj.node = nodeAr
             }
     }
 
