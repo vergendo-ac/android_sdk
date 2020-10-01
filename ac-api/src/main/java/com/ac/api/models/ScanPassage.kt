@@ -11,6 +11,7 @@
 */
 package com.ac.api.models
 
+import com.ac.api.models.ScanFrame
 import com.ac.api.models.ScanStyle
 
 import com.squareup.moshi.Json

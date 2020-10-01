@@ -11,21 +11,19 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.Placeholder
-import com.ac.api.models.Sticker
 
 import com.squareup.moshi.Json
 
 /**
  * 
- * @param placeholder 
- * @param sticker 
+ * @param x 
+ * @param y 
  */
 
-data class ARObject (
-    @Json(name = "placeholder")
-    val placeholder: Placeholder,
-    @Json(name = "sticker")
-    val sticker: Sticker
+data class Vector2i (
+    @Json(name = "x")
+    val x: kotlin.Int,
+    @Json(name = "y")
+    val y: kotlin.Int
 )
 

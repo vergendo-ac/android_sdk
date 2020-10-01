@@ -11,21 +11,28 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.Placeholder
-import com.ac.api.models.Sticker
 
 import com.squareup.moshi.Json
 
 /**
  * 
- * @param placeholder 
- * @param sticker 
+ * @param stickerId 
+ * @param stickerText 
+ * @param stickerType 
+ * @param path 
+ * @param stickerSubtype 
  */
 
-data class ARObject (
-    @Json(name = "placeholder")
-    val placeholder: Placeholder,
-    @Json(name = "sticker")
-    val sticker: Sticker
-)
+data class Sticker (
+    @Json(name = "sticker_id")
+    val stickerId: kotlin.String,
+    @Json(name = "sticker_text")
+    val stickerText: kotlin.String,
+    @Json(name = "sticker_type")
+    val stickerType: kotlin.String,
+    @Json(name = "path")
+    val path: kotlin.String,
+    @Json(name = "sticker_subtype")
+    val stickerSubtype: kotlin.String? = null
+) : kotlin.collections.HashMap<String, kotlin.String>()
 

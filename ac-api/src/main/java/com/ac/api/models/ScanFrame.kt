@@ -11,21 +11,21 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.Placeholder
-import com.ac.api.models.Sticker
+import com.ac.api.models.Camera
 
 import com.squareup.moshi.Json
 
 /**
  * 
- * @param placeholder 
- * @param sticker 
+ * @param filename Unique image filename
+ * @param camera 
  */
 
-data class ARObject (
-    @Json(name = "placeholder")
-    val placeholder: Placeholder,
-    @Json(name = "sticker")
-    val sticker: Sticker
+data class ScanFrame (
+    /* Unique image filename */
+    @Json(name = "filename")
+    val filename: kotlin.String,
+    @Json(name = "camera")
+    val camera: Camera? = null
 )
 

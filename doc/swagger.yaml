@@ -152,6 +152,65 @@ paths:
                 items:
                   $ref: '#/components/schemas/ReconstructionTaskStatus'
                 nullable: true
+  /object/pose:
+    post:
+      summary: Add AR object by 3D pose
+      tags:
+        - Objects
+      operationId: addObjectByPose
+      description: Add a custom object by 3d pose
+      responses:
+        '200':
+          description: Object processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddObjectResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObjectWithPose'
+  /object:
+    post:
+      summary: Add AR object by image
+      tags:
+        - Objects
+      operationId: addObjectByImage
+      description: Add a custom object by marked image
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - description
+                - image
+              properties:
+                description:
+                  $ref: '#/components/schemas/ObjectWithMarkedImage'
+                image:
+                  $ref: '#/components/schemas/ImageWithExif'
+            encoding:
+              description:
+                contentType: application/json
+              image:
+                contentType: image/jpeg
+      responses:
+        '200':
+          description: Object processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddObjectResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
   /localizer/prepare:
     get:
       tags:
@@ -257,29 +316,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
-  /object/pose:
-    post:
-      summary: Add an object by 3D pose
-      tags:
-        - Objects
-      operationId: addObjectByPose
-      description: Add a new user object into database
-      responses:
-        '200':
-          description: Object processed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AddObjectResult'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/ServerError'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ObjectWithPose'
 components:
   schemas:
     Vector2d:
@@ -294,6 +330,18 @@ components:
         'y':
           type: number
           format: float
+    Vector2i:
+      type: object
+      required:
+        - x
+        - 'y'
+      properties:
+        x:
+          type: integer
+          example: 100
+        'y':
+          type: integer
+          example: 42
     Vector3d:
       type: object
       required:
@@ -432,25 +480,7 @@ components:
         placeholder:
           $ref: '#/components/schemas/Placeholder'
         sticker:
-          type: object
-          required:
-            - sticker_id
-            - sticker_text
-            - sticker_type
-            - path
-          properties:
-            sticker_id:
-              type: string
-            sticker_text:
-              type: string
-            sticker_type:
-              type: string
-            sticker_subtype:
-              type: string
-            path:
-              type: string
-          additionalProperties:
-            type: string
+          $ref: '#/components/schemas/Sticker'
     ARObjects:
       type: array
       items:
@@ -474,12 +504,100 @@ components:
             - sticker
           properties:
             sticker:
-              type: object
-              properties:
-                path:
-                  type: string
-                sticker_text:
-                  type: string
+              $ref: '#/components/schemas/StickerData'
+    ObjectWithMarkedImage:
+      type: object
+      required:
+        - placeholder
+        - sticker
+      properties:
+        placeholder:
+          $ref: '#/components/schemas/PlaceholderImage'
+        sticker:
+          $ref: '#/components/schemas/StickerData'
+    PlaceholderImage:
+      type: object
+      description: Marked image
+      required:
+        - projections
+      properties:
+        projections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageProjections'
+    ImageProjections:
+      type: object
+      required:
+        - points
+        - filename
+      properties:
+        points:
+          $ref: '#/components/schemas/Frame2i'
+        filename:
+          type: string
+          example: image.jpg
+    Frame2i:
+      type: array
+      minItems: 4
+      maxItems: 4
+      items:
+        $ref: '#/components/schemas/Vector2i'
+    DeleteObjectStatus:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          enum:
+            - 0
+            - 1
+          description: |+
+            | State   | Code   |  Description  |
+              | -- | -- | -- |
+              | Success | 0 | The object was successfully deleted |
+              | Fail | 1 | Couldn't delete the object |
+
+        message:
+          type: string
+    Sticker:
+      type: object
+      required:
+        - sticker_id
+        - sticker_text
+        - sticker_type
+        - path
+      properties:
+        sticker_id:
+          type: string
+        sticker_text:
+          type: string
+        sticker_type:
+          type: string
+        sticker_subtype:
+          type: string
+        path:
+          type: string
+      additionalProperties:
+        type: string
+    StickerData:
+      type: object
+      required:
+        - sticker_text
+        - sticker_type
+        - path
+      properties:
+        sticker_text:
+          type: string
+        sticker_type:
+          type: string
+        sticker_subtype:
+          type: string
+        path:
+          type: string
+      additionalProperties:
+        type: string
     PrepareStatus:
       type: object
       required:
@@ -808,16 +926,18 @@ components:
     ScanPoint:
       type: array
       items:
-        type: object
-        required:
-          - filename
-        properties:
-          filename:
-            type: string
-            description: Unique image filename
-            example: image_1.jpg
-          camera:
-            $ref: '#/components/schemas/Camera'
+        $ref: '#/components/schemas/ScanFrame'
+    ScanFrame:
+      type: object
+      required:
+        - filename
+      properties:
+        filename:
+          type: string
+          description: Unique image filename
+          example: image_1.jpg
+        camera:
+          $ref: '#/components/schemas/Camera'
     ScanStyle:
       type: string
       enum:

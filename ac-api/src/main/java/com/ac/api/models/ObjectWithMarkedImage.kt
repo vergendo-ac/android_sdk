@@ -11,8 +11,8 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.Placeholder
-import com.ac.api.models.Sticker
+import com.ac.api.models.PlaceholderImage
+import com.ac.api.models.StickerData
 
 import com.squareup.moshi.Json
 
@@ -22,10 +22,10 @@ import com.squareup.moshi.Json
  * @param sticker 
  */
 
-data class ARObject (
+data class ObjectWithMarkedImage (
     @Json(name = "placeholder")
-    val placeholder: Placeholder,
+    val placeholder: PlaceholderImage,
     @Json(name = "sticker")
-    val sticker: Sticker
+    val sticker: StickerData
 )
 
