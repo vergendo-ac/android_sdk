@@ -20,7 +20,7 @@ const val EXP = "LocalizationResult(status=LocalizationStatus(code=0, message=Im
 
 class LocalizeTest : StringSpec({
     "Localize should respond" {
-        val apiClient = ApiClient("http://developer.vergendo.com:5000/api/v2")
+        val apiClient = ApiClient("http://developer.augmented.city/api/v2")
         val webService = apiClient.createService(LocalizerApi::class.java)
         val gps = ImageDescriptionGps(60.0309083, 30.2414354, 68.5)
         val imageDesc = ImageDescription(gps, null, null, false,90)

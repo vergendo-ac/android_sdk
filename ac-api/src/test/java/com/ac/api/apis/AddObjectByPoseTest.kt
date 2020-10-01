@@ -6,9 +6,39 @@ import io.kotlintest.specs.StringSpec
 import retrofit2.Call
 import retrofit2.Response
 
+enum class StickerType {
+    REST,
+    SHOP,
+    PLACE,
+    OTHER,
+    TEXT;
+
+    override fun toString() =
+        when (this) {
+            REST -> "restaurant"
+            SHOP -> "shop"
+            PLACE -> "place"
+            OTHER -> "other"
+            TEXT -> "text"
+        }
+
+    companion object {
+        fun fromString(string: String): StickerType {
+            return when (string) {
+                "restaurant" -> REST
+                "shop" -> SHOP
+                "place" -> PLACE
+                "text" -> TEXT
+                "other" -> OTHER
+                else -> OTHER
+            }
+        }
+    }
+}
+
 class AddObjectByPoseTest :   StringSpec({
     "AddObjectByPoseTest" {
-        val apiClient = ApiClient("http://developer.vergendo.com:5000/api/v2")
+        val apiClient = ApiClient("http://developer.augmented.city/api/v2")
         apiClient.setLogger {
             println(it)
         }
@@ -30,7 +60,7 @@ class AddObjectByPoseTest :   StringSpec({
                 val position = Vector3d(0f, 0f, -1f)
                 val rotation = Quaternion(x=0f, y=0f, z=0f, w=1f)
                 val pose = Pose(position, rotation)
-                val sticker = ObjectWithPoseDescriptionSticker("", "!!!!")
+                val sticker = StickerData("coffee house", "restaurant", "path")
                 val obj = ObjectWithPoseDescription(sticker)
 
                 val objectWithPose = ObjectWithPose(recId!!, pose, obj, null)
