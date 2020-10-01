@@ -11,7 +11,7 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.ObjectWithPoseDescriptionSticker
+import com.ac.api.models.StickerData
 
 import com.squareup.moshi.Json
 
@@ -22,6 +22,6 @@ import com.squareup.moshi.Json
 
 data class ObjectWithPoseDescription (
     @Json(name = "sticker")
-    val sticker: ObjectWithPoseDescriptionSticker
+    val sticker: StickerData
 )
 

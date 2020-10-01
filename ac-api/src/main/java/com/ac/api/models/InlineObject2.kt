@@ -11,21 +11,25 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.Placeholder
-import com.ac.api.models.Sticker
+import com.ac.api.models.ImageDescription
+import com.ac.api.models.LocalizationHint
 
 import com.squareup.moshi.Json
 
 /**
  * 
- * @param placeholder 
- * @param sticker 
+ * @param description 
+ * @param image A JPEG-encoded image
+ * @param hint 
  */
 
-data class ARObject (
-    @Json(name = "placeholder")
-    val placeholder: Placeholder,
-    @Json(name = "sticker")
-    val sticker: Sticker
+data class InlineObject2 (
+    @Json(name = "description")
+    val description: ImageDescription,
+    /* A JPEG-encoded image */
+    @Json(name = "image")
+    val image: java.io.File,
+    @Json(name = "hint")
+    val hint: LocalizationHint? = null
 )
 

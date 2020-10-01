@@ -1,10 +1,11 @@
 
-# ObjectWithPoseDescription
+# Vector2i
 
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**sticker** | [**StickerData**](StickerData.md) |  | 
+**x** | **kotlin.Int** |  | 
+**y** | **kotlin.Int** |  | 
 
 
 

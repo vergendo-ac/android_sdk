@@ -16,14 +16,20 @@ import com.squareup.moshi.Json
 
 /**
  * 
- * @param path 
  * @param stickerText 
+ * @param stickerType 
+ * @param path 
+ * @param stickerSubtype 
  */
 
-data class ObjectWithPoseDescriptionSticker (
-    @Json(name = "path")
-    val path: kotlin.String? = null,
+data class StickerData (
     @Json(name = "sticker_text")
-    val stickerText: kotlin.String? = null
-)
+    val stickerText: kotlin.String,
+    @Json(name = "sticker_type")
+    val stickerType: kotlin.String,
+    @Json(name = "path")
+    val path: kotlin.String,
+    @Json(name = "sticker_subtype")
+    val stickerSubtype: kotlin.String? = null
+) : kotlin.collections.HashMap<String, kotlin.String>()
 

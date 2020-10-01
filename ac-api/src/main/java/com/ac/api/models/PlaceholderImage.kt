@@ -11,21 +11,17 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.Placeholder
-import com.ac.api.models.Sticker
+import com.ac.api.models.ImageProjections
 
 import com.squareup.moshi.Json
 
 /**
- * 
- * @param placeholder 
- * @param sticker 
+ * Marked image
+ * @param projections 
  */
 
-data class ARObject (
-    @Json(name = "placeholder")
-    val placeholder: Placeholder,
-    @Json(name = "sticker")
-    val sticker: Sticker
+data class PlaceholderImage (
+    @Json(name = "projections")
+    val projections: kotlin.collections.List<ImageProjections>
 )
 
