@@ -3,6 +3,7 @@ package com.ac.api.apis
 import com.ac.api.infrastructure.ApiClient
 import com.ac.api.models.ImageDescription
 import com.ac.api.models.ImageDescriptionGps
+import com.ac.api.models.LocalizationHint
 import com.ac.api.models.LocalizationResult
 import io.kotlintest.specs.StringSpec
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -19,17 +20,15 @@ const val EXP = "LocalizationResult(status=LocalizationStatus(code=0, message=Im
 
 class LocalizeTest : StringSpec({
     "Localize should respond" {
-        val apiClient = ApiClient("http://developer.vergendo.com/api/v2")
-        apiClient.setLogger {
-            println(it)
-        }
+        val apiClient = ApiClient("http://developer.vergendo.com:5000/api/v2")
         val webService = apiClient.createService(LocalizerApi::class.java)
         val gps = ImageDescriptionGps(60.0309083, 30.2414354, 68.5)
-        val imageDesc = ImageDescription(gps, null, null, 90)
+        val imageDesc = ImageDescription(gps, null, null, false,90)
         val image = LocalizeTest::class.java.getResource("image.jpg")!!.readBytes()
         val mp = createMultipartBody(image)
+        val hint = LocalizationHint( emptyList(), null)
 
-        val result: Call<LocalizationResult> = webService.localize(imageDesc, mp)
+        val result: Call<LocalizationResult> = webService.localize(imageDesc, mp, hint)
         try {
             val response: Response<LocalizationResult> = result.execute()
             println("LocalizationResult:" + response.body())

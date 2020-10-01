@@ -1,4 +1,6 @@
 package com.ac.myapplication
 
-class AddStickersActivity {
+import androidx.appcompat.app.AppCompatActivity
+
+class AddStickersActivity : AppCompatActivity() {
 }

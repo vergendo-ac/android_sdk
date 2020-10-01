@@ -1,9 +1,11 @@
 package com.ac.myapplication
 
+import android.content.Context
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.media.Image
+import android.os.Environment.DIRECTORY_PICTURES
 import com.ac.api.models.Quaternion
 import com.ac.api.models.Vector3d
 import com.ac.myapplication.math.Float3
@@ -84,6 +86,10 @@ fun Vector3d.toLocal(matrix: Mat4): Vector3d {
     return Vector3d(pointAr.x, pointAr.y, pointAr.z)
 }
 
+fun saveImageToFile(byteArray: ByteArray, name: String, context: Context){
+    val file = File(context.getExternalFilesDir(DIRECTORY_PICTURES), name)
+    file.writeBytes(byteArray)
+}
 
 fun createMultipartBody(
     byteArray: ByteArray
@@ -109,7 +115,7 @@ fun Image.toByteArray(): ByteArray {
 
     val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
     val out = ByteArrayOutputStream()
-    yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 95, out)
+    yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 60, out)
     return out.toByteArray()
 }
 

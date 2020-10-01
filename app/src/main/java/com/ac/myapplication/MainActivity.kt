@@ -5,7 +5,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.IntentSender
 import android.content.pm.PackageManager
-import android.graphics.Rect
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -54,14 +53,14 @@ class MainActivity : AppCompatActivity()
         const val LOCALIZE_INTERVAL = 3000
         const val DEFAULT_LOCATION_UPDATE_INTERVAL = 1000L
         const val REQUEST_PERMISSIONS = 1000
-        const val SERVER_URL = "http://developer.augmented.city/api/v2"
+        const val SERVER_URL = "http://developer.vergendo.com:5000/api/v2"
         val PERMISSIONS = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.CAMERA
         )
         const val TAG = "MainActivity"
-        const val STICKER_WIDTH_IN_METERS = 0.9f
+        const val STICKER_WIDTH_IN_METERS = 0.3f
     }
 
     private lateinit var context: Context
@@ -93,6 +92,7 @@ class MainActivity : AppCompatActivity()
         }
 
         arSceneView = arFragment.arSceneView
+
         arSceneView.planeRenderer.isEnabled = false
 
         settingsClient = LocationServices.getSettingsClient(this)
@@ -133,6 +133,18 @@ class MainActivity : AppCompatActivity()
             try {
                 val response: Response<LocalizationResult> = callResult.execute()
                 result = response.body()
+
+
+                if(result != null && result.status.code== RESPONSE_STATUS_CODE_OK) {
+                    val sb = StringBuilder("image_")
+                    sb.append(System.currentTimeMillis().toString() + "_")
+                    sb.append("lat_" + location.latitude.toString())
+                    sb.append("_lon_" + location.longitude.toString())
+                    sb.append("_alt_" + location.altitude.toString())
+                    sb.append(".jpg")
+                    saveImageToFile(image, sb.toString(), context)
+                }
+
                 Log.d(TAG, "LocalizationResult: $result")
             } catch (ex: Exception) {
                 Log.d(TAG, "Localize error: ${ex.message}")
@@ -193,10 +205,10 @@ class MainActivity : AppCompatActivity()
                             sceneObjects[it.id] = it
                             add2dObjectPos(it)
                         }
+//                        else{
+//                            update2dObjectPos(inScene)
+//                        }
                         // todo update or not
-                        //else{
-                        //    update2dObjectPos(inScene)
-                        //}
                     }
                     Toast.makeText(
                         context,
@@ -262,7 +274,6 @@ class MainActivity : AppCompatActivity()
             val anchorNode = AnchorNode(anchor)
             anchorNode.setParent(arSceneView.scene)
             node!!.setParent(anchorNode)
-            //node.parent
         }
     }
 
@@ -279,9 +290,16 @@ class MainActivity : AppCompatActivity()
                         obj.position.z
                     )
                 )
+
+                //val pos = floatArrayOf(0f, 0f, -1f)
+                //val rotation = floatArrayOf(0f, 0f, 0f, 1f)
+                //val pose = Pose(pos, rotation)
+
                 val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
                 val anchorNode = AnchorNode(anchor)
                 anchorNode.setParent(arSceneView.scene)
+
+
 
                 val nodeAr = Node().apply {
                     renderable = it
@@ -297,7 +315,15 @@ class MainActivity : AppCompatActivity()
 
     @ExperimentalCoroutinesApi
     private fun onUpdateSceneFrame(frameTime: FrameTime) {
+        arFragment.onUpdate(frameTime)
+
         val frame: Frame = arSceneView.arFrame ?: return
+        // If ARCore is not tracking yet, then don't process anything.
+        if (frame.camera.trackingState != TrackingState.TRACKING) {
+            return
+        }
+
+
         val time = System.currentTimeMillis()
         val delta = time - lastLocalizeTime
         if (frame.camera.trackingState === TrackingState.TRACKING) {
@@ -306,6 +332,7 @@ class MainActivity : AppCompatActivity()
                 var imageData: ByteArray? = null
                 try {
                     val image: Image = frame.acquireCameraImage()
+                    //Log.d(TAG, "format: "+  image.format+", w="+image.width+", h="+image.height)
                     imageData = image.toByteArray()
                     image.close()
                     syncPose = frame.camera.pose
