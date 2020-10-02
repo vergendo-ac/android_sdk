@@ -23,7 +23,7 @@ import com.squareup.moshi.Json
 data class AddObjectStatus (
     /* | State   | Code   |  Description  |   | -- | -- | -- |   | Success | 0 | Object is added |   | Fail | 1 | Failed to add object |   */
     @Json(name = "code")
-    val code: AddObjectStatus.Code,
+    val code: Int,
     @Json(name = "message")
     val message: kotlin.String
 ) {

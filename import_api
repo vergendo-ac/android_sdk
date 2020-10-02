@@ -45,3 +45,5 @@ sed -i 's/ImageDescription.Rotation? = null/Int? = null/' ac-api/src/main/java/c
 sed -i 's/.List>/.List<Any>>/' ac-api/src/main/java/com/ac/api/models/ScanPassage.kt
 
 sed -i '42i@Headers("Content-Type: application/json")' ac-api/src/main/java/com/ac/api/apis/ObjectsApi.kt
+
+sed -i 's/AddObjectStatus.Code/Int/' ac-api/src/main/java/com/ac/api/models/AddObjectStatus.kt
