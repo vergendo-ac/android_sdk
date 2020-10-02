@@ -39,9 +39,9 @@ enum class StickerType {
 class AddObjectByPoseTest :   StringSpec({
     "AddObjectByPoseTest" {
         val apiClient = ApiClient("http://developer.augmented.city:15000/api/v2")
-//        apiClient.setLogger {
-//            println(it)
-//        }
+        apiClient.setLogger {
+            println(it)
+        }
         val localizerApi = apiClient.createService(LocalizerApi::class.java)
         val objectsApi = apiClient.createService(ObjectsApi::class.java)
         val gps = ImageDescriptionGps(59.9927546, 30.3807287, 67.9000015258789)
@@ -59,19 +59,13 @@ class AddObjectByPoseTest :   StringSpec({
                 val position = Vector3d(0f, 0f, -1f)
                 val rotation = Quaternion(x=0f, y=0f, z=0f, w=1f)
                 val pose = Pose(position, rotation)
-                val sticker = StickerData("coffee house", "restaurant", "path")
+                val sticker = StickerData("coffee house", "restaurant", "path", null, "sticker_id")
                 val obj = ObjectWithPoseDescription(sticker)
-
                 val objectWithPose = ObjectWithPose(recId!!, pose, obj, null)
-
                 val objectWithPoseCall: Call<AddObjectResult> = objectsApi.addObjectByPose(objectWithPose)
                 val addResponse: Response<AddObjectResult>  = objectWithPoseCall.execute()
-
                 println("RSP:"+addResponse)
             }
-
-
-
         } catch (ex: Exception) {
             ex.printStackTrace()
             assert(false)
