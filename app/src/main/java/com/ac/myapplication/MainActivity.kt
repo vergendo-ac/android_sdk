@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity()
         const val LOCALIZE_INTERVAL = 3000
         const val DEFAULT_LOCATION_UPDATE_INTERVAL = 1000L
         const val REQUEST_PERMISSIONS = 1000
-        const val SERVER_URL = "http://developer.vergendo.com:5000/api/v2"
+        const val SERVER_URL = "http://developer.augmented.city:15000/api/v2"
         val PERMISSIONS = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
