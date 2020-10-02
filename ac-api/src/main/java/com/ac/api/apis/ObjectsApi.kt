@@ -39,6 +39,7 @@ interface ObjectsApi {
      * @param objectWithPose  (optional)
     * @return [Call]<[AddObjectResult]>
      */
+@Headers("Content-Type: application/json")
     @POST("object/pose")
     fun addObjectByPose(@Body objectWithPose: ObjectWithPose? = null): Call<AddObjectResult>
 
