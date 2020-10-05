@@ -8,7 +8,7 @@ import retrofit2.Response
 
 class AddObjectByImage :   StringSpec({
     "AddObjectByImage" {
-        val apiClient = ApiClient("http://developer.vergendo.com:5000/api/v2")
+        val apiClient = ApiClient("http://developer.vergendo.com:15000/api/v2")
         apiClient.setLogger {
             println(it)
         }
