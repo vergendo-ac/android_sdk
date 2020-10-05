@@ -53,6 +53,7 @@ class AddObjectByPoseTest :   StringSpec({
         try {
             val response: Response<LocalizationResult> = localizeCall.execute()
             val result = response.body()
+            assert(response.isSuccessful)
             println(result)
             if(result!!.status.code==0){
                 val recId = result.reconstructionId
@@ -64,7 +65,9 @@ class AddObjectByPoseTest :   StringSpec({
                 val objectWithPose = ObjectWithPose(recId!!, pose, obj, null)
                 val objectWithPoseCall: Call<AddObjectResult> = objectsApi.addObjectByPose(objectWithPose)
                 val addResponse: Response<AddObjectResult>  = objectWithPoseCall.execute()
+                assert(addResponse.isSuccessful)
                 println("RSP:"+addResponse)
+
             }
         } catch (ex: Exception) {
             ex.printStackTrace()
