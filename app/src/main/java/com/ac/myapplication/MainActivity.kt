@@ -5,10 +5,12 @@ import android.app.Activity
 import android.content.Context
 import android.content.IntentSender
 import android.content.pm.PackageManager
+import android.graphics.SurfaceTexture
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.media.Image
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
@@ -30,45 +32,63 @@ import com.google.ar.core.exceptions.NotYetAvailableException
 import com.google.ar.sceneform.*
 import com.google.ar.sceneform.Camera
 import com.google.ar.sceneform.math.Vector3
-import com.google.ar.sceneform.rendering.FixedWidthViewSizer
-import com.google.ar.sceneform.rendering.ViewRenderable
+import com.google.ar.sceneform.rendering.*
 import com.google.ar.sceneform.ux.ArFragment
+import com.google.ar.sceneform.ux.TransformableNode
 import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Response
 
 
-data class ArObject(val position: Vector3d = Vector3d(0.0f, 0.0f,0.0f),
-                    val id: String = "",
-                    var txt: String,
-                    var node : Node?)
+data class ArObject(
+    val position: Vector3d = Vector3d(0.0f, 0.0f, 0.0f),
+    val id: String = "",
+    var txt: String,
+    var node: Node?
+)
+
+private enum class ObjectType {
+    OBJ_2D, OBJ_3D, OBJ_VID, OBJ_VID_CHR
+}
 
 
-@Suppress("IMPLICIT_CAST_TO_ANY")
-class MainActivity : AppCompatActivity()
-{
+class MainActivity : AppCompatActivity() {
+    private val USE_OBJ = ObjectType.OBJ_VID_CHR
+
     companion object {
         const val RESPONSE_STATUS_CODE_OK = 0
         const val GPS_REQUEST = 1001
-        const val LOCALIZE_INTERVAL = 3000
-        const val DEFAULT_LOCATION_UPDATE_INTERVAL = 1000L
+        const val LOCALIZE_INTERVAL = 15000
+        const val DEFAULT_LOCATION_UPDATE_INTERVAL = 5000L
         const val REQUEST_PERMISSIONS = 1000
-        const val SERVER_URL = "http://developer.augmented.city:15000/api/v2"
+        const val SERVER_URL = "http://developer.vergendo.com/api/v2"
+        private val CHROMA_KEY_COLOR =
+            Color(0.1843f, 1.0f, 0.098f)
+
+        //const val SERVER_URL = "http://developer.augmented.city/api/v2"
         val PERMISSIONS = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.CAMERA
         )
         const val TAG = "MainActivity"
-        const val STICKER_WIDTH_IN_METERS = 0.3f
+        const val STICKER_WIDTH_IN_METERS = 5f
+        const val VIDEO_HEIGHT_CHR = 8f
+        const val VIDEO_HEIGHT = 5f
+
+        const val VIDEO_SOURCE = "https://videocdn.bodybuilding.com/video/mp4/62000/62792m.mp4"
+
     }
 
     private lateinit var context: Context
     private val apiClient = ApiClient(SERVER_URL)
+    private val webService = apiClient.createService(LocalizerApi::class.java)
+
     private lateinit var arFragment: ArFragment
     private lateinit var arSceneView: ArSceneView
     private lateinit var syncPose: Pose
 
+    private var localizeDone: Boolean = false
     private var inLocalizeProgressFlag: Boolean = false
     private var lastLocalizeTime: Long = 0
     private var currentLocation: Location? = null
@@ -76,8 +96,8 @@ class MainActivity : AppCompatActivity()
     private lateinit var settingsClient: SettingsClient
     private lateinit var locationManager: LocationManager
     private var prepareLocalizationDone: Boolean = false
-
     private var sceneObjects = mutableMapOf<String, ArObject>()
+
 
     @ExperimentalCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,52 +124,33 @@ class MainActivity : AppCompatActivity()
     @ExperimentalCoroutinesApi
     private suspend fun makeNetworkPrepareLocalizeCall(lat: Double, lon: Double) =
         Dispatchers.Default {
-            var result: PrepareResult? = null
-            val webService = apiClient.createService(LocalizerApi::class.java)
             val callResult: Call<PrepareResult> = webService.prepare(lat, lon)
             try {
-                val response: Response<PrepareResult> = callResult.execute()
-                result = response.body()
-                Log.d(TAG, "PrepareResult: $result")
-
+                return@Default callResult.execute()
             } catch (ex: Exception) {
                 Log.d(TAG, "Prepare error: ${ex.message}")
+                return@Default "Prepare error: ${ex.message}"
             }
-            return@Default result
         }
 
 
     @ExperimentalCoroutinesApi
     private suspend fun makeNetworkLocalizeCall(image: ByteArray, location: Location) =
         Dispatchers.Default {
-            var result: LocalizationResult? = null
-            val webService = apiClient.createService(LocalizerApi::class.java)
+            //var result: LocalizationResult? = null
             val gps = ImageDescriptionGps(location.latitude, location.longitude, location.altitude)
-            val imageDesc = ImageDescription(gps, null, null, false,90)
+            val imageDesc = ImageDescription(gps, null, null, false, 90)
             val mp = createMultipartBody(image)
-            val hint = LocalizationHint( emptyList(), null)
+            val hint = LocalizationHint(emptyList(), null)
 
             val callResult: Call<LocalizationResult> = webService.localize(imageDesc, mp, hint)
             try {
                 val response: Response<LocalizationResult> = callResult.execute()
-                result = response.body()
-
-
-                if(result != null && result.status.code== RESPONSE_STATUS_CODE_OK) {
-                    val sb = StringBuilder("image_")
-                    sb.append(System.currentTimeMillis().toString() + "_")
-                    sb.append("lat_" + location.latitude.toString())
-                    sb.append("_lon_" + location.longitude.toString())
-                    sb.append("_alt_" + location.altitude.toString())
-                    sb.append(".jpg")
-                    saveImageToFile(image, sb.toString(), context)
-                }
-
-                Log.d(TAG, "LocalizationResult: $result")
+                return@Default response
             } catch (ex: Exception) {
                 Log.d(TAG, "Localize error: ${ex.message}")
+                return@Default "Localize error: ${ex.message}"
             }
-            return@Default result
         }
 
     private fun clearSceneObjects() {
@@ -167,92 +168,109 @@ class MainActivity : AppCompatActivity()
     @ExperimentalCoroutinesApi
     private fun localization(imageData: ByteArray) {
         CoroutineScope(Dispatchers.Main).launch {
+
+            Toast.makeText(
+                context,
+                "Localization start",
+                Toast.LENGTH_SHORT
+            ).show()
+
             val location = Location(currentLocation)
             val response = makeNetworkLocalizeCall(imageData, location)
-            if (response != null) {
-                if (response.status.code == RESPONSE_STATUS_CODE_OK) {
-                    val camera = response.camera
+            if (response is String) {
+                Toast.makeText(
+                    context,
+                    response,
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else if (response is Response<*>) {
+                if (response.isSuccessful) {
+                    val result = response.body() as LocalizationResult
+                    if (result.status.code == RESPONSE_STATUS_CODE_OK) {
+                        Toast.makeText(
+                            context,
+                            "RESPONSE_STATUS_CODE_OK",
+                            Toast.LENGTH_SHORT
+                        ).show()
 
-                    val points: List<ArObject> =
-                        response.objects!!.mapNotNull { objectInfo ->
-                            val id = objectInfo.placeholder.placeholderId
-                            val node =
-                                response.placeholders!!.singleOrNull { it.placeholderId == id }
-                            node
-                        }.map {
-                            val position = it.pose.position.toFloatArray().asList().toVector3d()
-                            ArObject(position, it.placeholderId, "", null)
-                        }.toList()
+                        val camera = result.camera
+                        val points: List<ArObject> =
+                            result.objects!!.mapNotNull { objectInfo ->
+                                val id = objectInfo.placeholder.placeholderId
+                                val node =
+                                    result.placeholders!!.singleOrNull { it.placeholderId == id }
+                                node
+                            }.map {
+                                val position = it.pose.position.toFloatArray().asList().toVector3d()
+                                ArObject(position, it.placeholderId, "", null)
+                            }.toList()
 
-                    val matrix = srvToLocalTransform(
-                        Pose.IDENTITY.toMat4(),
-                        Pose(
-                            camera!!.pose.position.toFloatArray(),
-                            camera.pose.orientation.toFloatArray()
-                        ).toMat4(), 1.0f
-                    )
+                        val matrix = srvToLocalTransform(
+                            Pose.IDENTITY.toMat4(),
+                            Pose(
+                                camera!!.pose.position.toFloatArray(),
+                                camera.pose.orientation.toFloatArray()
+                            ).toMat4(), 1.0f
+                        )
 
-                    val objectsToPlace = points.map {
-                        val pos = it.position.toLocal(matrix)
-                        it.copy(position = pos)
-                    }.toTypedArray()
+                        val objectsToPlace = points.map {
+                            val pos = it.position.toLocal(matrix)
+                            it.copy(position = pos)
+                        }.toTypedArray()
 
-                    objectsToPlace.iterator().forEach {
-                        it.txt = getStickerText(response,it.id)
+                        objectsToPlace.iterator().forEach {
+                            it.txt = getStickerText(result, it.id)
+                            val inScene = sceneObjects[it.id]
+                            if (inScene == null) {
+                                sceneObjects[it.id] = it
 
-                        val inScene = sceneObjects[it.id]
-                        if(inScene==null){
-                            sceneObjects[it.id] = it
-                            add2dObjectPos(it)
+                                when(USE_OBJ){
+                                    ObjectType.OBJ_2D -> add2dObject(it)
+                                    ObjectType.OBJ_3D -> add3dObject(it)
+                                    ObjectType.OBJ_VID_CHR -> addVideoChr(it)
+                                    ObjectType.OBJ_VID -> addVideo(it)
+                                }
+                            }
                         }
-//                        else{
-//                            update2dObjectPos(inScene)
-//                        }
-                        // todo update or not
+                        localizeDone = true
+                        Toast.makeText(
+                            context,
+                            "Localization done",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        //clearSceneObjects()
+                        //sceneObjects.clear()
+                        Toast.makeText(
+                            context,
+                            response.toString(),
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
-                    Toast.makeText(
-                        context,
-                        "Localization done",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    // TODO clear or not clear
-                    //clearSceneObjects()
-                    //sceneObjects.clear()
+                    lastLocalizeTime = System.currentTimeMillis()
+                    inLocalizeProgressFlag = false
 
+                } else {
                     Toast.makeText(
                         context,
                         response.toString(),
-                        Toast.LENGTH_LONG
+                        Toast.LENGTH_SHORT
                     ).show()
                 }
-                lastLocalizeTime = System.currentTimeMillis()
-                inLocalizeProgressFlag = false
+
             }
+
         }
     }
 
-    @ExperimentalCoroutinesApi
-    private fun prepareLocalization(location: Location) {
-        CoroutineScope(Dispatchers.Main).launch {
-            val result = makeNetworkPrepareLocalizeCall(location.latitude, location.longitude)
-            if (result != null) {
-                Toast.makeText(
-                    context,
-                    result.toString(),
-                    Toast.LENGTH_LONG
-                ).show()
-                prepareLocalizationDone = true
-            }
-        }
-    }
 
-    private fun getStickerText(resp: LocalizationResult, id: String): String{
+    private fun getStickerText(resp: LocalizationResult, id: String): String {
         var ret: String = ""
-        if(!resp.objects.isNullOrEmpty()){
+        if (!resp.objects.isNullOrEmpty()) {
             resp.objects!!.iterator().forEach {
-                if(it.placeholder.placeholderId == id){
-                    ret = (if(it.sticker["sticker_text"] !=null) it.sticker.get("sticker_text") else "") as String
+                if (it.placeholder.placeholderId == id) {
+                    ret =
+                        (if (it.sticker["stickerText"] != null) it.sticker["stickerText"] else "null") as String
                     return ret
                 }
             }
@@ -260,8 +278,8 @@ class MainActivity : AppCompatActivity()
         return ret
     }
 
-    private fun update2dObjectPos(obj :ArObject) {
-        if(obj.node!=null){
+    private fun update2dObjectPos(obj: ArObject) {
+        if (obj.node != null) {
             val node = obj.node
             val trPos: Pose = syncPose.compose(
                 Pose.makeTranslation(
@@ -277,12 +295,55 @@ class MainActivity : AppCompatActivity()
         }
     }
 
-    private fun add2dObjectPos(obj :ArObject) {
-        ViewRenderable.builder()
-            .setView(this, R.layout.layout_sticker)
+    private fun add3dObject(obj: ArObject) {
+        ModelRenderable.builder()
+            .setSource(this, R.raw.star)
             .build()
-            .thenAccept { it ->
-                it.view.findViewById<TextView>(R.id.text).text = obj.txt
+            .thenAccept {
+                val trPos: Pose = syncPose.compose(
+                    Pose.makeTranslation(
+                        obj.position.x,
+                        obj.position.y,
+                        obj.position.z
+                    )
+                )
+                val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
+                val anchorNode = AnchorNode(anchor)
+                anchorNode.setParent(arSceneView.scene)
+
+                val node = TransformableNode(arFragment.transformationSystem)
+                node.apply {
+                    localRotation =
+                        com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 1f, 1f), 90f)
+                    renderable = it
+                    setParent(anchorNode)
+                    select()
+                }
+            }
+
+    }
+
+
+    private fun addVideo(obj: ArObject) {
+        ModelRenderable.builder()
+            .setSource(this, R.raw.video)
+            .build()
+            .thenAccept {
+                val texture = ExternalTexture()
+                val mediaPlayer = MediaPlayer()
+                mediaPlayer.apply {
+                    setSurface(texture.surface)
+                    isLooping = true
+                    try {
+                        mediaPlayer.setDataSource(VIDEO_SOURCE)
+                        mediaPlayer.prepare()
+                    } catch (e: Exception) {
+                        Log.d(TAG, " mediaPlayer.setDataSource error: " + e.message)
+                    }
+                }
+
+                it.material.setExternalTexture("videoTexture", texture)
+
                 val trPos: Pose = syncPose.compose(
                     Pose.makeTranslation(
                         obj.position.x,
@@ -291,48 +352,167 @@ class MainActivity : AppCompatActivity()
                     )
                 )
 
-                //val pos = floatArrayOf(0f, 0f, -1f)
-                //val rotation = floatArrayOf(0f, 0f, 0f, 1f)
-                //val pose = Pose(pos, rotation)
+                val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
+                val anchorNode = AnchorNode(anchor)
+                anchorNode.setParent(arSceneView.scene)
+
+                val videoWidth = mediaPlayer.videoWidth.toFloat()
+                val videoHeight = mediaPlayer.videoHeight.toFloat()
+
+                val videoNode = Node()
+                videoNode.apply {
+                    localScale = Vector3(
+                        VIDEO_HEIGHT * (videoWidth / videoHeight),
+                        VIDEO_HEIGHT,
+                        1.0f
+                    )
+
+                    videoNode.localRotation =
+                        com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 0f, 1f), 90f)
+
+                    setParent(anchorNode)
+                }
+
+                if (!mediaPlayer.isPlaying) {
+                    mediaPlayer.start()
+                    val surfTex = texture.surfaceTexture
+                    surfTex.setOnFrameAvailableListener { texture: SurfaceTexture? ->
+                        videoNode.renderable = it
+                        texture?.setOnFrameAvailableListener(null)
+                    }
+                } else {
+                    videoNode.renderable = it
+                }
+                obj.node = videoNode
+            }
+    }
+
+    private fun addVideoChr(obj: ArObject) {
+        ModelRenderable.builder()
+            .setSource(this, R.raw.video_chr)
+            .build()
+            .thenAccept {
+                val texture = ExternalTexture()
+                val mediaPlayer = MediaPlayer.create(context, R.raw.lion_chroma)
+                mediaPlayer.setSurface(texture.surface)
+                mediaPlayer.isLooping = true
+
+                it.material.setExternalTexture("videoTexture", texture)
+                it.material.setFloat4("keyColor", CHROMA_KEY_COLOR)
+
+                val trPos: Pose = syncPose.compose(
+                    Pose.makeTranslation(
+                        obj.position.x,
+                        obj.position.y,
+                        obj.position.z
+                    )
+                )
 
                 val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
                 val anchorNode = AnchorNode(anchor)
                 anchorNode.setParent(arSceneView.scene)
 
+                val videoWidth = mediaPlayer.videoWidth.toFloat()
+                val videoHeight = mediaPlayer.videoHeight.toFloat()
 
+                val videoNode = Node()
+                videoNode.apply {
+                    localScale = Vector3(
+                        VIDEO_HEIGHT_CHR * (videoWidth / videoHeight),
+                        VIDEO_HEIGHT_CHR,
+                        1.0f
+                    )
+                    localRotation =
+                        com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 0f, 1f), 90f)
 
+                    setParent(anchorNode)
+                }
+
+                // Start playing the video when the first node is placed.
+                if (!mediaPlayer.isPlaying) {
+                    mediaPlayer.start()
+                    // Wait to set the renderable until the first frame of the  video becomes available.
+                    // This prevents the renderable from briefly appearing as a black quad before the video
+                    // plays.
+                    texture
+                        .surfaceTexture
+                        .setOnFrameAvailableListener { surface: SurfaceTexture? ->
+                            videoNode.renderable = it
+                            texture.surfaceTexture.setOnFrameAvailableListener(null)
+                        }
+                } else {
+                    videoNode.renderable = it
+                }
+                obj.node = videoNode
+
+                Toast.makeText(
+                    context,
+                    "addVideoLion done",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            }.exceptionally {
+                val builder = AlertDialog.Builder(this)
+                builder.setMessage(it.message)
+                    .setTitle("error!")
+                val dialog = builder.create()
+                dialog.show()
+                return@exceptionally null
+            }
+    }
+
+    private fun add2dObject(obj: ArObject) {
+        ViewRenderable.builder()
+            .setView(this, R.layout.layout_sticker)
+            .build()
+            .thenAccept {
+                it.view.findViewById<TextView>(R.id.text).text = obj.txt
+                val trPos: Pose = syncPose.compose(
+                    Pose.makeTranslation(
+                        obj.position.x,
+                        obj.position.y,
+                        obj.position.z
+                    )
+                )
+                val anchor: Anchor = arSceneView.session!!.createAnchor(trPos)
+                val anchorNode = AnchorNode(anchor)
+                anchorNode.setParent(arSceneView.scene)
                 val nodeAr = Node().apply {
                     renderable = it
-                    (renderable as ViewRenderable).sizer = FixedWidthViewSizer(STICKER_WIDTH_IN_METERS)
+                    (renderable as ViewRenderable).sizer =
+                        FixedWidthViewSizer(STICKER_WIDTH_IN_METERS)
                     setParent(anchorNode)
+
                     localRotation =
                         com.google.ar.sceneform.math.Quaternion.axisAngle(Vector3(0f, 0f, 1f), 90f)
 
                 }
                 obj.node = nodeAr
+
+                Toast.makeText(
+                    context,
+                    "add2dObject done",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
     @ExperimentalCoroutinesApi
     private fun onUpdateSceneFrame(frameTime: FrameTime) {
         arFragment.onUpdate(frameTime)
-
         val frame: Frame = arSceneView.arFrame ?: return
-        // If ARCore is not tracking yet, then don't process anything.
         if (frame.camera.trackingState != TrackingState.TRACKING) {
             return
         }
-
-
         val time = System.currentTimeMillis()
         val delta = time - lastLocalizeTime
-        if (frame.camera.trackingState === TrackingState.TRACKING) {
-            if (delta >= LOCALIZE_INTERVAL && currentLocation != null && prepareLocalizationDone && !inLocalizeProgressFlag) {
+        if (frame.camera.trackingState === TrackingState.TRACKING)
+        {
+            if ((!localizeDone) and (delta >= LOCALIZE_INTERVAL) and (currentLocation != null) and (prepareLocalizationDone) and (!inLocalizeProgressFlag)) {
                 inLocalizeProgressFlag = true
                 var imageData: ByteArray? = null
                 try {
                     val image: Image = frame.acquireCameraImage()
-                    //Log.d(TAG, "format: "+  image.format+", w="+image.width+", h="+image.height)
                     imageData = image.toByteArray()
                     image.close()
                     syncPose = frame.camera.pose
@@ -467,10 +647,51 @@ class MainActivity : AppCompatActivity()
     }
 
     @ExperimentalCoroutinesApi
+    private fun prepareLocalization(location: Location) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val result = makeNetworkPrepareLocalizeCall(location.latitude, location.longitude)
+            if (result is String) {
+                Toast.makeText(
+                    context,
+                    result,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            if (result is Response<*>) {
+                if (result.isSuccessful) {
+                    Toast.makeText(
+                        context,
+                        result.body().toString(),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    prepareLocalizationDone = true
+                } else {
+                    Toast.makeText(
+                        context,
+                        result.toString(),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
+        }
+    }
+
+    private fun prepareDone() {
+        Toast.makeText(
+            context,
+            "prepareLocalization done",
+            Toast.LENGTH_LONG
+        ).show()
+        prepareLocalizationDone = true
+    }
+
+    @ExperimentalCoroutinesApi
     private val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             if (currentLocation == null) {
                 prepareLocalization(location)
+                //prepareDone()
             }
             currentLocation = location
             Log.d(TAG, "onLocationChanged: $location")

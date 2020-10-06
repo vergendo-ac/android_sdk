@@ -9,26 +9,27 @@ import com.google.ar.sceneform.ux.ArFragment
 import java.util.*
 
 
-const val TAG = "ArFragmentExt"
+
 
 private enum class ImageResolution {
     LOW_RESOLUTION, MEDIUM_RESOLUTION, HIGH_RESOLUTION
 }
 
+
+
 class ArFragmentExt : ArFragment() {
-
-    private val USE_RESOLUTION = ImageResolution.HIGH_RESOLUTION
-
-    // For Camera Configuration APIs usage.
+    private val USE_RESOLUTION = ImageResolution.MEDIUM_RESOLUTION
     private var cpuLowResolutionCameraConfig: CameraConfig? = null
     private var cpuMediumResolutionCameraConfig: CameraConfig? = null
     private var cpuHighResolutionCameraConfig: CameraConfig? = null
 
+    companion object {
+        const val TAG = "ArFragmentExt"
+    }
 
     private fun getCameraConfigWithSelectedResolution(
         cameraConfigs: List<CameraConfig>, resolution: ImageResolution
     ): CameraConfig? {
-        // Take the first three camera configs, if camera configs size are larger than 3.
         val cameraConfigsByResolution: List<CameraConfig> = ArrayList(
             cameraConfigs.subList(0, Math.min(cameraConfigs.size, 3))
         )
@@ -42,8 +43,7 @@ class ArFragmentExt : ArFragment() {
         var cameraConfig = cameraConfigsByResolution[0]
         when (resolution) {
             ImageResolution.LOW_RESOLUTION -> cameraConfig = cameraConfigsByResolution[0]
-            ImageResolution.MEDIUM_RESOLUTION ->         // There are some devices that medium resolution is the same as high resolution.
-                cameraConfig = cameraConfigsByResolution[1]
+            ImageResolution.MEDIUM_RESOLUTION -> cameraConfig = cameraConfigsByResolution[1]
             ImageResolution.HIGH_RESOLUTION -> cameraConfig = cameraConfigsByResolution[2]
         }
         return cameraConfig
@@ -65,10 +65,7 @@ class ArFragmentExt : ArFragment() {
             )
         val cameraConfigs =
             session.getSupportedCameraConfigs(cameraConfigFilter)
-        Log.i(TAG, "Size of supported CameraConfigs list is " + cameraConfigs.size)
 
-
-        // Determine the highest and lowest CPU resolutions.
         cpuLowResolutionCameraConfig =
             getCameraConfigWithSelectedResolution(
                 cameraConfigs, ImageResolution.LOW_RESOLUTION)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
+import android.location.Location
 import android.media.Image
 import android.os.Environment.DIRECTORY_PICTURES
 import com.ac.api.models.Quaternion
@@ -86,15 +87,23 @@ fun Vector3d.toLocal(matrix: Mat4): Vector3d {
     return Vector3d(pointAr.x, pointAr.y, pointAr.z)
 }
 
-fun saveImageToFile(byteArray: ByteArray, name: String, context: Context){
-    val file = File(context.getExternalFilesDir(DIRECTORY_PICTURES), name)
+fun saveImageToFile(byteArray: ByteArray, location: Location, context: Context){
+
+    val sb = StringBuilder("image_")
+    sb.append(System.currentTimeMillis().toString() + "_")
+    sb.append("lat_" + location.latitude.toString())
+    sb.append("_lon_" + location.longitude.toString())
+    sb.append("_alt_" + location.altitude.toString())
+    sb.append(".jpg")
+
+    val file = File(context.getExternalFilesDir(DIRECTORY_PICTURES), sb.toString())
     file.writeBytes(byteArray)
 }
 
 fun createMultipartBody(
     byteArray: ByteArray
 ): MultipartBody.Part {
-    return MultipartBody.Part.createFormData("image", null, createRequestBody(byteArray))
+    return MultipartBody.Part.createFormData("image", "file.jpg", createRequestBody(byteArray))
 }
 
 // convert scene image to jpg
