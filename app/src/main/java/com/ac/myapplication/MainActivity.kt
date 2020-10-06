@@ -53,7 +53,7 @@ private enum class ObjectType {
 
 
 class MainActivity : AppCompatActivity() {
-    private val USE_OBJ = ObjectType.OBJ_VID_CHR
+    private val USE_OBJ = ObjectType.OBJ_VID
 
     companion object {
         const val RESPONSE_STATUS_CODE_OK = 0
@@ -61,22 +61,21 @@ class MainActivity : AppCompatActivity() {
         const val LOCALIZE_INTERVAL = 15000
         const val DEFAULT_LOCATION_UPDATE_INTERVAL = 5000L
         const val REQUEST_PERMISSIONS = 1000
-        const val SERVER_URL = "http://developer.vergendo.com/api/v2"
+        const val SERVER_URL = "http://developer.augmented.city/api/v2"
         private val CHROMA_KEY_COLOR =
             Color(0.1843f, 1.0f, 0.098f)
 
-        //const val SERVER_URL = "http://developer.augmented.city/api/v2"
         val PERMISSIONS = arrayOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.CAMERA
         )
         const val TAG = "MainActivity"
-        const val STICKER_WIDTH_IN_METERS = 5f
-        const val VIDEO_HEIGHT_CHR = 8f
-        const val VIDEO_HEIGHT = 5f
+        const val STICKER_WIDTH_IN_METERS = 1f
+        const val VIDEO_HEIGHT_CHR = 1f
+        const val VIDEO_HEIGHT = 1f
 
-        const val VIDEO_SOURCE = "https://videocdn.bodybuilding.com/video/mp4/62000/62792m.mp4"
+        const val VIDEO_SOURCE = "https://firebasestorage.googleapis.com/v0/b/video-storage-7afa1.appspot.com/o/BigBuckBunny.mp4?alt=media&token=cd0b0144-0f40-4abe-9a3c-63f85e19698a"
 
     }
 
