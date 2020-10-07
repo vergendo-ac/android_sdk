@@ -11,14 +11,14 @@ import java.util.*
 
 
 
-private enum class ImageResolution {
+enum class ImageResolution {
     LOW_RESOLUTION, MEDIUM_RESOLUTION, HIGH_RESOLUTION
 }
 
 
 
 class ArFragmentExt : ArFragment() {
-    private val USE_RESOLUTION = ImageResolution.MEDIUM_RESOLUTION
+
     private var cpuLowResolutionCameraConfig: CameraConfig? = null
     private var cpuMediumResolutionCameraConfig: CameraConfig? = null
     private var cpuHighResolutionCameraConfig: CameraConfig? = null
@@ -85,7 +85,7 @@ class ArFragmentExt : ArFragment() {
 
         printResolutionInfoInfo(cpuHighResolutionCameraConfig)
 
-        when(USE_RESOLUTION){
+        when(USE_AR_CAMERA_RESOLUTION){
             ImageResolution.LOW_RESOLUTION -> session.cameraConfig = cpuLowResolutionCameraConfig
             ImageResolution.MEDIUM_RESOLUTION -> session.cameraConfig = cpuMediumResolutionCameraConfig
             ImageResolution.HIGH_RESOLUTION -> session.cameraConfig = cpuHighResolutionCameraConfig
