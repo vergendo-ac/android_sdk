@@ -1,7 +1,17 @@
 # Augmented City Demo
 
-## Demo
-![Demo image](doc/demo.gif?raw=true "Demo app")
+## Demos
+
+<table>
+  <tr>
+    <td>2d sticker</td>
+    <td>Video sticker</td>
+  </tr>
+  <tr>
+    <td><img src="doc/demo.gif" height="250"/></td>
+    <td><img src="doc/media_sticker.gif" height="250"/></td>
+  </tr>
+</table>
 
 ## Introduction
 The Augmented City demo app demonstrates how to use AC api.
