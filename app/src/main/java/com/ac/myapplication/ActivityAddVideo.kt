@@ -18,7 +18,7 @@ import retrofit2.Response
 open class ActivityAddVideo: ActivityAdd2dObject() {
 
 
-    override fun addObject(obj: ArObject, syncPose: Pose) {
+    override fun addObject(obj: ArObjectPos, syncPose: Pose) {
         ModelRenderable.builder()
             .setSource(this, R.raw.video)
             .build()
