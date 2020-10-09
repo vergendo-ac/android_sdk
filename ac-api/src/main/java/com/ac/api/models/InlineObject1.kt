@@ -11,25 +11,21 @@
 */
 package com.ac.api.models
 
-import com.ac.api.models.ImageDescription
-import com.ac.api.models.LocalizationHint
+import com.ac.api.models.ObjectWithMarkedImage
 
 import com.squareup.moshi.Json
 
 /**
  * 
  * @param description 
- * @param image A JPEG-encoded image
- * @param hint 
+ * @param image A JPEG-encoded image, must include GPS data in EXIF tags
  */
 
 data class InlineObject1 (
     @Json(name = "description")
-    val description: ImageDescription,
-    /* A JPEG-encoded image */
+    val description: ObjectWithMarkedImage,
+    /* A JPEG-encoded image, must include GPS data in EXIF tags */
     @Json(name = "image")
-    val image: java.io.File,
-    @Json(name = "hint")
-    val hint: LocalizationHint? = null
+    val image: java.io.File
 )
 

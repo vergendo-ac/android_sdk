@@ -12,6 +12,7 @@
 package com.ac.api.models
 
 import com.ac.api.models.Placeholder
+import com.ac.api.models.Sticker
 
 import com.squareup.moshi.Json
 
@@ -25,6 +26,6 @@ data class ARObject (
     @Json(name = "placeholder")
     val placeholder: Placeholder,
     @Json(name = "sticker")
-    val sticker: kotlin.collections.Map<kotlin.String, kotlin.String>
+    val sticker: Sticker
 )
 

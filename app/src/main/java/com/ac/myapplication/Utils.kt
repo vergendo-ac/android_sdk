@@ -1,9 +1,12 @@
 package com.ac.myapplication
 
+import android.content.Context
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
+import android.location.Location
 import android.media.Image
+import android.os.Environment.DIRECTORY_PICTURES
 import com.ac.api.models.Quaternion
 import com.ac.api.models.Vector3d
 import com.ac.myapplication.math.Float3
@@ -84,11 +87,23 @@ fun Vector3d.toLocal(matrix: Mat4): Vector3d {
     return Vector3d(pointAr.x, pointAr.y, pointAr.z)
 }
 
+fun saveImageToFile(byteArray: ByteArray, location: Location, context: Context){
+
+    val sb = StringBuilder("image_")
+    sb.append(System.currentTimeMillis().toString() + "_")
+    sb.append("lat_" + location.latitude.toString())
+    sb.append("_lon_" + location.longitude.toString())
+    sb.append("_alt_" + location.altitude.toString())
+    sb.append(".jpg")
+
+    val file = File(context.getExternalFilesDir(DIRECTORY_PICTURES), sb.toString())
+    file.writeBytes(byteArray)
+}
 
 fun createMultipartBody(
     byteArray: ByteArray
 ): MultipartBody.Part {
-    return MultipartBody.Part.createFormData("image", null, createRequestBody(byteArray))
+    return MultipartBody.Part.createFormData("image", "file.jpg", createRequestBody(byteArray))
 }
 
 // convert scene image to jpg
@@ -109,7 +124,7 @@ fun Image.toByteArray(): ByteArray {
 
     val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
     val out = ByteArrayOutputStream()
-    yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 95, out)
+    yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 60, out)
     return out.toByteArray()
 }
 
