@@ -23,14 +23,14 @@
         android:theme="@style/AppTheme">
 
         <activity android:name=".ActivityPrepareAndLocalize">
+
+        </activity>
+
+        <activity android:name=".ActivityAdd2dObject">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-        <activity android:name=".ActivityAdd2dObject">
-
         </activity>
 
         <activity android:name=".ActivityAdd3dObject">
