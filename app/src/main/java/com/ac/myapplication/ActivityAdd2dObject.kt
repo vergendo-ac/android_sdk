@@ -5,6 +5,7 @@ import android.media.Image
 import android.os.Bundle
 import android.widget.TextView
 import com.ac.api.models.LocalizationResult
+import com.ac.api.models.Sticker
 import com.ac.api.models.Vector3d
 import com.google.ar.core.Anchor
 import com.google.ar.core.Frame
@@ -24,36 +25,22 @@ import kotlinx.coroutines.launch
 import retrofit2.Response
 
 
-data class ArObject(
+data class ArObjectPos(
     val position: Vector3d = Vector3d(0.0f, 0.0f, 0.0f),
     val id: String = "",
-    var txt: String,
+    var sticker: Sticker,
     var node: Node?
 )
 
 open class ActivityAdd2dObject : ActivityPrepareAndLocalize() {
 
-    var sceneObjects = mutableMapOf<String, ArObject>()
+    var sceneObjects = mutableMapOf<String, ArObjectPos>()
     @ExperimentalCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
     }
 
-    private fun getStickerText(resp: LocalizationResult, id: String): String {
-        var ret: String = ""
-        if (!resp.objects.isNullOrEmpty()) {
-            resp.objects!!.iterator().forEach {
-                if (it.placeholder.placeholderId == id) {
-                    ret =
-                        (if (it.sticker["stickerText"] != null) it.sticker["stickerText"] else "null") as String
-                    return ret
-                }
-            }
-        }
-        return ret
-    }
-
-    open fun createAnchorNode(obj: ArObject, syncPose: Pose):AnchorNode{
+    open fun createAnchorNode(obj: ArObjectPos, syncPose: Pose):AnchorNode{
         val trPos: Pose = syncPose.compose(
             Pose.makeTranslation(
                 obj.position.x,
@@ -67,12 +54,12 @@ open class ActivityAdd2dObject : ActivityPrepareAndLocalize() {
         return anchorNode
     }
 
-    open fun addObject(obj: ArObject, syncPose: Pose) {
+    open fun addObject(obj: ArObjectPos, syncPose: Pose) {
         ViewRenderable.builder()
             .setView(this, R.layout.layout_sticker)
             .build()
             .thenAccept {
-                it.view.findViewById<TextView>(R.id.text).text = obj.txt
+                it.view.findViewById<TextView>(R.id.text).text = obj.sticker.stickerText
                 val anchorNode = createAnchorNode(obj, syncPose)
                 val nodeAr = Node().apply {
                     renderable = it
@@ -95,18 +82,19 @@ open class ActivityAdd2dObject : ActivityPrepareAndLocalize() {
         localizeDone = false
     }
 
-    fun onLocalizationResult(result: LocalizationResult) : Array<ArObject>{
+    fun onLocalizationResult(result: LocalizationResult) : Array<ArObjectPos>{
         val camera = result.camera
-        val points: List<ArObject> =
-            result.objects!!.mapNotNull { objectInfo ->
-                val id = objectInfo.placeholder.placeholderId
-                val node =
-                    result.placeholders!!.singleOrNull { it.placeholderId == id }
-                node
-            }.map {
-                val position = it.pose.position.toFloatArray().asList().toVector3d()
-                ArObject(position, it.placeholderId, "", null)
-            }.toList()
+        val points =  mutableListOf<ArObjectPos>()
+        result.objects?.forEach { obj ->
+            result.placeholders?.forEach { place ->
+                if(place.placeholderId == obj.placeholder.placeholderId){
+                    val position = place.pose.position.toFloatArray().asList().toVector3d()
+                    val ar = ArObjectPos(position, place.placeholderId, obj.sticker, null)
+                    points.add(ar)
+                }
+            }
+        }
+
 
         val matrix = srvToLocalTransform(
             Pose.IDENTITY.toMat4(),
@@ -134,10 +122,9 @@ open class ActivityAdd2dObject : ActivityPrepareAndLocalize() {
                 if (response.isSuccessful) {
                     val result = response.body() as LocalizationResult
                     if (result.status.code == RESPONSE_STATUS_CODE_OK) {
-
                         val objectsToPlace = onLocalizationResult(result)
                         objectsToPlace.iterator().forEach {
-                            it.txt = getStickerText(result, it.id)
+                            //it.txt = getStickerText(result, it.id)
                             val inScene = sceneObjects[it.id]
                             if (inScene == null) {
                                 sceneObjects[it.id] = it
@@ -161,7 +148,7 @@ open class ActivityAdd2dObject : ActivityPrepareAndLocalize() {
     override fun onUpdateSceneFrame(frameTime: FrameTime) {
         arFragment.onUpdate(frameTime)
         val frame: Frame = arFragment.arSceneView.arFrame ?: return
-
+        onTrackingState(frame.camera.trackingState)
         if (frame.camera.trackingState != TrackingState.TRACKING) {
             return
         }

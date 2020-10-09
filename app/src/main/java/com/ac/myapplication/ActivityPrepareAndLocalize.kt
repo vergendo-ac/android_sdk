@@ -12,6 +12,7 @@ import android.location.LocationManager
 import android.media.Image
 import android.os.Bundle
 import android.util.Log
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -46,6 +47,7 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
     var localizeDone: Boolean = false
     var inLocalizeProgressFlag: Boolean = false
     var currentLocation: Location = Location("")
+    private lateinit var cameraTrackingStateSummary: TextView
 
     private lateinit var settingsClient: SettingsClient
     private lateinit var locationManager: LocationManager
@@ -57,6 +59,7 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         context = this
+        cameraTrackingStateSummary = this.findViewById(R.id.cameraTrackingStateSummary)
         arFragment = supportFragmentManager.findFragmentById(R.id.sceneform_fragment) as ArFragment
         arFragment.planeDiscoveryController.apply {
             hide()
@@ -80,12 +83,23 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("SetTextI18n")
+    fun onTrackingState(state: TrackingState){
+        when(state){
+            TrackingState.TRACKING -> cameraTrackingStateSummary.text = " TRACKING"
+            TrackingState.PAUSED -> cameraTrackingStateSummary.text = " PAUSED"
+            TrackingState.STOPPED -> cameraTrackingStateSummary.text = " STOPPED"
+        }
+    }
 
 
     @ExperimentalCoroutinesApi
     open fun onUpdateSceneFrame(frameTime: FrameTime) {
         arFragment.onUpdate(frameTime)
         val frame: Frame = arFragment.arSceneView.arFrame ?: return
+
+        onTrackingState(frame.camera.trackingState)
+
         if (frame.camera.trackingState != TrackingState.TRACKING) {
             return
         }

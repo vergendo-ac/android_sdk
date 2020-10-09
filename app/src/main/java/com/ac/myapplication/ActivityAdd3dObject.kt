@@ -7,7 +7,7 @@ import com.google.ar.sceneform.ux.TransformableNode
 
 class ActivityAdd3dObject : ActivityAdd2dObject() {
 
-    override fun addObject(obj: ArObject, syncPose: Pose) {
+    override fun addObject(obj: ArObjectPos, syncPose: Pose) {
         ModelRenderable.builder()
             .setSource(this, R.raw.star)
             .build()
