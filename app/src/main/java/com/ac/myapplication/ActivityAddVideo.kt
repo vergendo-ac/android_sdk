@@ -15,7 +15,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import retrofit2.Response
 
-open class ActivityAddVideo: ActivityAdd2dObject() {
+open class ActivityAddVideo : ActivityAdd2dObject() {
 
 
     override fun addObject(obj: ArObjectPos, syncPose: Pose) {

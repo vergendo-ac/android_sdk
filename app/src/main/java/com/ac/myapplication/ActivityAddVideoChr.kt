@@ -9,12 +9,12 @@ import com.google.ar.sceneform.rendering.Color
 import com.google.ar.sceneform.rendering.ExternalTexture
 import com.google.ar.sceneform.rendering.ModelRenderable
 
-class ActivityAddVideoChr: ActivityAddVideo() {
+class ActivityAddVideoChr : ActivityAddVideo() {
 
     private val CHROMA_KEY_COLOR =
         Color(0.1843f, 1.0f, 0.098f)
 
-    override fun addObject (obj: ArObjectPos, syncPose: Pose) {
+    override fun addObject(obj: ArObjectPos, syncPose: Pose) {
         ModelRenderable.builder()
             .setSource(this, R.raw.video_chr)
             .build()
