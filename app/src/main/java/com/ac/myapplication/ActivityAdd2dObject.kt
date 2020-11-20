@@ -35,12 +35,13 @@ data class ArObjectPos(
 open class ActivityAdd2dObject : ActivityPrepareAndLocalize() {
 
     var sceneObjects = mutableMapOf<String, ArObjectPos>()
+
     @ExperimentalCoroutinesApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
     }
 
-    open fun createAnchorNode(obj: ArObjectPos, syncPose: Pose):AnchorNode{
+    open fun createAnchorNode(obj: ArObjectPos, syncPose: Pose): AnchorNode {
         val trPos: Pose = syncPose.compose(
             Pose.makeTranslation(
                 obj.position.x,
@@ -82,12 +83,12 @@ open class ActivityAdd2dObject : ActivityPrepareAndLocalize() {
         localizeDone = false
     }
 
-    fun onLocalizationResult(result: LocalizationResult) : Array<ArObjectPos>{
+    fun onLocalizationResult(result: LocalizationResult): Array<ArObjectPos> {
         val camera = result.camera
-        val points =  mutableListOf<ArObjectPos>()
+        val points = mutableListOf<ArObjectPos>()
         result.objects?.forEach { obj ->
             result.placeholders?.forEach { place ->
-                if(place.placeholderId == obj.placeholder.placeholderId){
+                if (place.placeholderId == obj.placeholder.placeholderId) {
                     val position = place.pose.position.toFloatArray().asList().toVector3d()
                     val ar = ArObjectPos(position, place.placeholderId, obj.sticker, null)
                     points.add(ar)

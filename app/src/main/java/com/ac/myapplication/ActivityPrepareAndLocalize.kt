@@ -36,7 +36,6 @@ import retrofit2.Call
 import retrofit2.Response
 
 
-
 open class ActivityPrepareAndLocalize : AppCompatActivity() {
     val apiClient = ApiClient(SERVER_URL)
     val webService = apiClient.createService(LocalizerApi::class.java)
@@ -84,8 +83,8 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
     }
 
     @SuppressLint("SetTextI18n")
-    fun onTrackingState(state: TrackingState){
-        when(state){
+    fun onTrackingState(state: TrackingState) {
+        when (state) {
             TrackingState.TRACKING -> cameraTrackingStateSummary.text = " TRACKING"
             TrackingState.PAUSED -> cameraTrackingStateSummary.text = " PAUSED"
             TrackingState.STOPPED -> cameraTrackingStateSummary.text = " STOPPED"
@@ -105,8 +104,7 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
         }
         val time = System.currentTimeMillis()
         val delta = time - lastLocalizeTime
-        if (frame.camera.trackingState === TrackingState.TRACKING)
-        {
+        if (frame.camera.trackingState === TrackingState.TRACKING) {
             if ((delta >= LOCALIZE_INTERVAL) and (prepareLocalizationDone) and (!inLocalizeProgressFlag)) {
                 inLocalizeProgressFlag = true
                 var imageData: ByteArray? = null
@@ -182,12 +180,12 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
         }
 
 
-    fun toast(txt: String, isLong: Boolean = true){
-        CoroutineScope(Dispatchers.Main.immediate).launch{
+    fun toast(txt: String, isLong: Boolean = true) {
+        CoroutineScope(Dispatchers.Main.immediate).launch {
             Toast.makeText(
                 context,
                 txt,
-                if(isLong) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+                if (isLong) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
             ).show()
         }
     }
@@ -204,7 +202,7 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
                     toast(result.body().toString())
                     prepareLocalizationDone = true
                 } else {
-                    toast( result.toString())
+                    toast(result.toString())
                 }
             }
         }
@@ -214,14 +212,17 @@ open class ActivityPrepareAndLocalize : AppCompatActivity() {
     protected val locationListener: LocationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             currentLocation.set(location)
-            if(!prepareLocalizationDone){
+            if (!prepareLocalizationDone) {
                 prepareLocalization(location)
             }
         }
+
         override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {
         }
+
         override fun onProviderEnabled(provider: String) {
         }
+
         override fun onProviderDisabled(provider: String) {
         }
     }

@@ -87,7 +87,7 @@ fun Vector3d.toLocal(matrix: Mat4): Vector3d {
     return Vector3d(pointAr.x, pointAr.y, pointAr.z)
 }
 
-fun saveImageToFile(byteArray: ByteArray, location: Location, context: Context){
+fun saveImageToFile(byteArray: ByteArray, location: Location, context: Context) {
 
     val sb = StringBuilder("image_")
     sb.append(System.currentTimeMillis().toString() + "_")

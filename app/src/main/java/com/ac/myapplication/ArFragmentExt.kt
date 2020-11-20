@@ -9,12 +9,9 @@ import com.google.ar.sceneform.ux.ArFragment
 import java.util.*
 
 
-
-
 enum class ImageResolution {
     LOW_RESOLUTION, MEDIUM_RESOLUTION, HIGH_RESOLUTION
 }
-
 
 
 class ArFragmentExt : ArFragment() {
@@ -49,8 +46,8 @@ class ArFragmentExt : ArFragment() {
         return cameraConfig
     }
 
-    private fun printResolutionInfoInfo(config :CameraConfig?){
-        if(config!=null) {
+    private fun printResolutionInfoInfo(config: CameraConfig?) {
+        if (config != null) {
             val imageSize = config.imageSize
             Log.i(TAG, "W=" + imageSize.width + ", H=" + imageSize.height)
         }
@@ -68,26 +65,30 @@ class ArFragmentExt : ArFragment() {
 
         cpuLowResolutionCameraConfig =
             getCameraConfigWithSelectedResolution(
-                cameraConfigs, ImageResolution.LOW_RESOLUTION)
+                cameraConfigs, ImageResolution.LOW_RESOLUTION
+            )
 
         printResolutionInfoInfo(cpuLowResolutionCameraConfig)
 
 
         cpuMediumResolutionCameraConfig =
             getCameraConfigWithSelectedResolution(
-                cameraConfigs, ImageResolution.MEDIUM_RESOLUTION)
+                cameraConfigs, ImageResolution.MEDIUM_RESOLUTION
+            )
 
         printResolutionInfoInfo(cpuMediumResolutionCameraConfig)
 
         cpuHighResolutionCameraConfig =
             getCameraConfigWithSelectedResolution(
-                cameraConfigs, ImageResolution.HIGH_RESOLUTION)
+                cameraConfigs, ImageResolution.HIGH_RESOLUTION
+            )
 
         printResolutionInfoInfo(cpuHighResolutionCameraConfig)
 
-        when(USE_AR_CAMERA_RESOLUTION){
+        when (USE_AR_CAMERA_RESOLUTION) {
             ImageResolution.LOW_RESOLUTION -> session.cameraConfig = cpuLowResolutionCameraConfig
-            ImageResolution.MEDIUM_RESOLUTION -> session.cameraConfig = cpuMediumResolutionCameraConfig
+            ImageResolution.MEDIUM_RESOLUTION -> session.cameraConfig =
+                cpuMediumResolutionCameraConfig
             ImageResolution.HIGH_RESOLUTION -> session.cameraConfig = cpuHighResolutionCameraConfig
         }
 
