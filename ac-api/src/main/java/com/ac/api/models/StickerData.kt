@@ -30,9 +30,6 @@ data class StickerData (
     @Json(name = "path")
     val path: kotlin.String,
     @Json(name = "sticker_subtype")
-    val stickerSubtype: kotlin.String? = null,
-    @Json(name = "sticker_id")
-    val stickerId: kotlin.String? = null
-
+    val stickerSubtype: kotlin.String? = null
 ) : kotlin.collections.HashMap<String, kotlin.String>()
 

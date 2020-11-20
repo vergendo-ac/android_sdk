@@ -22,7 +22,7 @@ interface ObjectsApi {
      * 
      * @param description  
      * @param image A JPEG-encoded image, must include GPS data in EXIF tags 
-    * @return [Call]<[AddObjectResult]>
+     * @return [Call]<[AddObjectResult]>
      */
     @Multipart
     @POST("object")
@@ -37,7 +37,7 @@ interface ObjectsApi {
      *  - 500: Internal Server Error
      * 
      * @param objectWithPose  (optional)
-    * @return [Call]<[AddObjectResult]>
+     * @return [Call]<[AddObjectResult]>
      */
 @Headers("Content-Type: application/json")
     @POST("object/pose")

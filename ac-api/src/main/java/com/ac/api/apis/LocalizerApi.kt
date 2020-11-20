@@ -24,7 +24,7 @@ interface LocalizerApi {
      * @param description  
      * @param image A JPEG-encoded image 
      * @param hint  (optional)
-    * @return [Call]<[LocalizationResult]>
+     * @return [Call]<[LocalizationResult]>
      */
     @Multipart
     @POST("localizer/localize")
@@ -42,7 +42,7 @@ interface LocalizerApi {
      * @param lon GPS longitude 
      * @param alt GPS altitude (optional) (optional)
      * @param dop GPS HDOP (optional) (optional)
-    * @return [Call]<[PrepareResult]>
+     * @return [Call]<[PrepareResult]>
      */
     @GET("localizer/prepare")
     fun prepare(@Query("lat") lat: kotlin.Double, @Query("lon") lon: kotlin.Double, @Query("alt") alt: kotlin.Double? = null, @Query("dop") dop: kotlin.Double? = null): Call<PrepareResult>

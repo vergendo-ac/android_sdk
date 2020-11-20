@@ -23,7 +23,7 @@ import com.squareup.moshi.Json
  * 
  * @param status 
  * @param camera 
- * @param reconstructionId 
+ * @param reconstructionId Reconstruction id
  * @param placeholders Pose describes position and orientation in reconstruction coordinate system. Frame describes 4 points in placeholder coordinate system.
  * @param surfaces 
  * @param objects 
@@ -34,6 +34,7 @@ data class LocalizationResult (
     val status: LocalizationStatus,
     @Json(name = "camera")
     val camera: Camera? = null,
+    /* Reconstruction id */
     @Json(name = "reconstruction_id")
     val reconstructionId: kotlin.Int? = null,
     /* Pose describes position and orientation in reconstruction coordinate system. Frame describes 4 points in placeholder coordinate system. */
