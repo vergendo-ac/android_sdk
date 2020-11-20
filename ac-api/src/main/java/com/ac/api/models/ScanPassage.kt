@@ -26,6 +26,6 @@ data class ScanPassage (
     @Json(name = "style")
     val style: ScanStyle,
     @Json(name = "points")
-    val points: kotlin.collections.List<kotlin.collections.List<Any>>
+    val points: kotlin.collections.List<kotlin.collections.List<ScanFrame>>
 )
 

@@ -66,8 +66,7 @@ class ApiClient(
     }
 
     fun <S> createService(serviceClass: Class<S>): S {
-        var usedClient: OkHttpClient? = null
-        this.okHttpClient?.let { usedClient = it } ?: run {usedClient = clientBuilder.build()}
+        val usedClient = this.okHttpClient ?: clientBuilder.build()
         return retrofitBuilder.client(usedClient).build().create(serviceClass)
     }
 
@@ -86,7 +85,7 @@ class ApiClient(
         }
     }
 
-    companion object {        
+    companion object {
         @JvmStatic
         val defaultBasePath: String by lazy {
             System.getProperties().getProperty("com.ac.api.baseUrl", "https://developer.augmented.city/api/v2")

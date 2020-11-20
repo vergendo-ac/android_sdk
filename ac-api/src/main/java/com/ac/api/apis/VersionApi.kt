@@ -15,7 +15,7 @@ interface VersionApi {
      *  - 404: Not Found
      *  - 500: Internal Server Error
      * 
-    * @return [Call]<[kotlin.String]>
+     * @return [Call]<[kotlin.String]>
      */
     @GET("server_version")
     fun getServerVersion(): Call<kotlin.String>

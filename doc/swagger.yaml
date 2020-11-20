@@ -493,7 +493,7 @@ components:
         - description
       properties:
         reconstruction_id:
-          type: integer
+          $ref: '#/components/schemas/ReconstructionId'
         pose:
           $ref: '#/components/schemas/Pose'
         frame:
@@ -651,7 +651,7 @@ components:
         camera:
           $ref: '#/components/schemas/Camera'
         reconstruction_id:
-          type: integer
+          $ref: '#/components/schemas/ReconstructionId'
         placeholders:
           $ref: '#/components/schemas/Placeholders3d'
         surfaces:
@@ -824,6 +824,10 @@ components:
       type: string
       format: binary
       description: 'A JPEG-encoded image, must include GPS data in EXIF tags'
+    ReconstructionId:
+      type: integer
+      description: Reconstruction id
+      example: 390
     ReconstructionTaskId:
       type: string
       format: uuid
@@ -853,6 +857,8 @@ components:
         - task_id
         - stage
       properties:
+        reconstruction_id:
+          $ref: '#/components/schemas/ReconstructionId'
         task_id:
           $ref: '#/components/schemas/ReconstructionTaskId'
         stage:
