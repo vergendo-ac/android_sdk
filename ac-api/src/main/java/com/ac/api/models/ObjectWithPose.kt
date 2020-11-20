@@ -19,13 +19,14 @@ import com.squareup.moshi.Json
 
 /**
  * 
- * @param reconstructionId 
+ * @param reconstructionId Reconstruction id
  * @param pose 
  * @param description 
  * @param frame 
  */
 
 data class ObjectWithPose (
+    /* Reconstruction id */
     @Json(name = "reconstruction_id")
     val reconstructionId: kotlin.Int,
     @Json(name = "pose")

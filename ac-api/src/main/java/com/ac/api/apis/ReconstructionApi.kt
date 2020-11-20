@@ -19,7 +19,7 @@ interface ReconstructionApi {
      *  - 200: Series reconstruction task created
      * 
      * @param scanSeriesDescription  (optional)
-    * @return [Call]<[ReconstructionTaskStatus]>
+     * @return [Call]<[ReconstructionTaskStatus]>
      */
     @POST("series")
     fun createReconstructionTask(@Body scanSeriesDescription: ScanSeriesDescription? = null): Call<ReconstructionTaskStatus>
@@ -30,7 +30,7 @@ interface ReconstructionApi {
      * Responses:
      *  - 200: OK
      * 
-    * @return [Call]<[kotlin.collections.List<AugmentedCity>]>
+     * @return [Call]<[kotlin.collections.List<AugmentedCity>]>
      */
     @GET("get_cities_all")
     fun getAllCities(): Call<kotlin.collections.List<AugmentedCity>>
@@ -43,7 +43,7 @@ interface ReconstructionApi {
      * 
      * @param pLatitude GPS latitude 
      * @param pLongitude GPS longitude 
-    * @return [Call]<[AugmentedCity]>
+     * @return [Call]<[AugmentedCity]>
      */
     @GET("get_city")
     fun getCityByGps(@Query("p_latitude") pLatitude: kotlin.Double, @Query("p_longitude") pLongitude: kotlin.Double): Call<AugmentedCity>
@@ -55,7 +55,7 @@ interface ReconstructionApi {
      *  - 200: Series processing statuses list
      * 
      * @param taskId Task id 
-    * @return [Call]<[kotlin.collections.List<ReconstructionTaskStatus>]>
+     * @return [Call]<[kotlin.collections.List<ReconstructionTaskStatus>]>
      */
     @GET("series")
     fun getReconstructionStatus(@Query("task_id") taskId: kotlin.collections.List<java.util.UUID>): Call<kotlin.collections.List<ReconstructionTaskStatus>>
@@ -68,7 +68,7 @@ interface ReconstructionApi {
      * 
      * @param taskId Reconstruction task id. Only one task_id could be specified 
      * @param image A JPEG-encoded image, must include GPS data in EXIF tags (optional)
-    * @return [Call]<[ReconstructionTaskStatus]>
+     * @return [Call]<[ReconstructionTaskStatus]>
      */
     @Multipart
     @PUT("series")

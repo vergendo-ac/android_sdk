@@ -19,6 +19,7 @@ import com.squareup.moshi.Json
  * Series reconstruction task process info
  * @param taskId Series task id
  * @param stage 
+ * @param reconstructionId Reconstruction id
  * @param images List of uploaded images filenames
  */
 
@@ -28,6 +29,9 @@ data class ReconstructionTaskStatus (
     val taskId: java.util.UUID,
     @Json(name = "stage")
     val stage: ReconstructionStage,
+    /* Reconstruction id */
+    @Json(name = "reconstruction_id")
+    val reconstructionId: kotlin.Int? = null,
     /* List of uploaded images filenames */
     @Json(name = "images")
     val images: kotlin.collections.List<kotlin.String>? = null
